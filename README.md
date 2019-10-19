@@ -1,2 +1,2 @@
-# Desperala-Solver
- Finds the optimal strategy for the dice game Desperala
+# Despirala-Solver
+ Finds the optimal strategy for the dice game Despirala
