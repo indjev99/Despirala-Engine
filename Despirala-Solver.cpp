@@ -13,25 +13,26 @@ const int MAX_CODE = 1 << (NUM_SIDES + NUM_DICE);
 const int DIFF_CODES = 30;
 const int NUM_COMBOS = 14;
 const int GOODS_PER_TURN = 5;
+const double POINTS_PER_GOOD = 1;
 const int MAX_GOODS = NUM_COMBOS * GOODS_PER_TURN;
 const int NUM_TRIALS_1 = 100000;
-const int NUM_TRIALS_2 = 5;
+const int NUM_TRIALS_2 = 10;
+const int NUM_TEST_TRIALS = 100;
+
+typedef std::array<int, NUM_SIDES> Occurs;
 
 struct Target
 {
-    std::string name;
-    int points;
-    int occurs[NUM_SIDES];
+    const std::string name;
+    const std::vector<int> args;
+    const int points;
+    const Occurs occurs;
 
-    Target(const std::string& name, int points, const int occurs[NUM_SIDES]):
+    Target(const std::string& name, const std::vector<int>& args, int points, const Occurs& occurs):
         name(name),
-        points(points)
-    {
-        for (int i = 0; i < NUM_SIDES; ++i)
-        {
-            this->occurs[i] = occurs[i];
-        }
-    }
+        args(args),
+        points(points),
+        occurs(occurs) {}
 };
 
 struct Combo
@@ -43,7 +44,7 @@ struct Combo
     {
         return name;
     }
-    virtual std::vector<Target> getTargets(const int diceOccurs[NUM_SIDES])
+    virtual std::vector<Target> getTargets(const Occurs& diceOccurs)
     {
         return {};
     }
@@ -53,8 +54,8 @@ struct Combo
     }
 
 protected:
-    std::string name;
-    int points;
+    const std::string name;
+    const int points;
 };
 
 struct SingleCombo : Combo
@@ -74,36 +75,28 @@ protected:
 struct FixedCombo : Combo
 {
 public:
-    FixedCombo(const std::string& name, int points, const int occurs[NUM_SIDES]):
-        Combo(name, points)
+    FixedCombo(const std::string& name, int points, const Occurs& occurs):
+        Combo(name, points),
+        occurs(occurs) {}
+    std::vector<Target> getTargets(const Occurs& diceOccurs)
     {
-        for (int i = 0; i < NUM_SIDES; ++i)
-        {
-            this->occurs[i] = occurs[i];
-        }
-    }
-    std::vector<Target> getTargets(const int diceOccurs[NUM_SIDES])
-    {
-        return {Target(name, points, occurs)};
+        return {Target(name, {}, points, occurs)};
     }
 
 protected:
-    int occurs[NUM_SIDES];
+    const Occurs occurs;
 };
 
 struct PermCombo : Combo
 {
 public:
-    PermCombo(const std::string& name, int points, const int occurs[NUM_SIDES]):
-        Combo(name, points)
+    PermCombo(const std::string& name, int points, const Occurs& occurs):
+        Combo(name, points),
+        templateOccurs(occurs)
     {
-        for (int i = 0; i < NUM_SIDES; ++i)
-        {
-            templateOccurs[i] = occurs[i];
-        }
-        std::sort(templateOccurs, templateOccurs + NUM_SIDES);
+        std::sort(templateOccurs.begin(), templateOccurs.end());
     }
-    std::vector<Target> getTargets(const int diceOccurs[NUM_SIDES])
+    std::vector<Target> getTargets(const Occurs& diceOccurs)
     {
         int code = 0;
         for (int i = 0; i < NUM_SIDES; ++i)
@@ -118,80 +111,76 @@ public:
     }
 
 protected:
-    int templateOccurs[NUM_SIDES];
+    Occurs templateOccurs;
     std::unordered_map<int, std::vector<Target>> cache;
 
-    virtual std::vector<Target> rawGetTargets(const int diceOccurs[NUM_SIDES]) const
+    virtual std::vector<Target> rawGetTargets(const Occurs& diceOccurs) const
     {
-        std::pair<int, int> diceOccursPairs[NUM_SIDES];
+        std::array<std::pair<int, int>, NUM_SIDES> diceOccursPairs;
         makePairs(diceOccurs, diceOccursPairs);
-        std::sort(diceOccursPairs, diceOccursPairs + NUM_SIDES);
+        std::sort(diceOccursPairs.begin(), diceOccursPairs.end());
 
-        int currOccurs[NUM_SIDES];
-        std::string currName = name + makeOccurs(templateOccurs, diceOccursPairs, currOccurs);
+        Occurs occurs;
+        std::vector<int> args = makeOccurs(templateOccurs, diceOccursPairs, occurs);
 
-        return {Target(currName, points, currOccurs)};
+        return {Target(name, args, points, occurs)};
     }
-    static void makePairs(const int diceOccurs[NUM_SIDES], std::pair<int, int> diceOccursPairs[NUM_SIDES])
+    static void makePairs(const Occurs& diceOccurs, std::array<std::pair<int, int>, NUM_SIDES>& diceOccursPairs)
     {
         for (int i = 0; i < NUM_SIDES; ++i)
         {
             diceOccursPairs[i] = {diceOccurs[i], i};
         }
     }
-    static std::string makeOccurs(const int templateOccurs[NUM_SIDES], const std::pair<int, int> diceOccursPairs[NUM_SIDES], int currOccurs[NUM_SIDES])
+    static std::vector<int> makeOccurs(const Occurs& templateOccurs, const std::array<std::pair<int, int>, NUM_SIDES>& diceOccursPairs, Occurs& currOccurs)
     {
-        std::string currSuffix = "";
+        std::vector<int> args;
         for (int i = NUM_SIDES - 1; i >= 0; --i)
         {
             currOccurs[diceOccursPairs[i].second] = templateOccurs[i];
-            if (templateOccurs[i] > 0) currSuffix += " " + std::to_string(diceOccursPairs[i].second + 1);
+            if (templateOccurs[i] > 0) args.push_back(diceOccursPairs[i].second + 1);
         }
-        return currSuffix;
+        return args;
     }
 };
 
 struct SPermCombo : PermCombo
 {
-    SPermCombo(const std::string& name, const int occurs[NUM_SIDES]):
+    SPermCombo(const std::string& name, const Occurs& occurs):
         PermCombo(name, 0, occurs) {};
 
 protected:
-    std::vector<Target> rawGetTargets(const int diceOccurs[NUM_SIDES]) const
+    std::vector<Target> rawGetTargets(const Occurs& diceOccurs) const
     {
-        std::pair<int, int> diceOccursPairs[NUM_SIDES];
+        std::array<std::pair<int, int>, NUM_SIDES> diceOccursPairs;
         makePairs(diceOccurs, diceOccursPairs);
-        std::sort(diceOccursPairs, diceOccursPairs + NUM_SIDES);
+        std::sort(diceOccursPairs.begin(), diceOccursPairs.end());
 
-        int currTemplate[NUM_SIDES];
-        for (int i = 0; i < NUM_SIDES; i++)
-        {
-            currTemplate[i] = templateOccurs[i];
-        }
+        Occurs currTemplate(templateOccurs);
 
         int maxPoints = -1;
         std::vector<Target> ts;
-        int currOccurs[NUM_SIDES];
+        Occurs occurs;
         do
         {
-            std::string currName = name + makeOccurs(currTemplate, diceOccursPairs, currOccurs);
-            int currPoints = evalOccurs(currOccurs);
+            std::vector<int> args = makeOccurs(currTemplate, diceOccursPairs, occurs);
+            int currPoints = evalOccurs(occurs);
             if (currPoints > maxPoints)
             {
                 maxPoints = currPoints;
-                ts.push_back(Target(currName, currPoints, currOccurs));
+                ts.push_back(Target(name, args, currPoints, occurs));
             }
         }
-        while (std::next_permutation(currTemplate, currTemplate + NUM_SIDES));
+        while (std::next_permutation(currTemplate.begin(), currTemplate.end()));
 
         return ts;
     }
-    static int evalOccurs(const int currOccurs[NUM_SIDES])
+    static int evalOccurs(const Occurs& occurs)
     {
         int points = 0;
         for (int i = 0;i < NUM_SIDES; ++i)
         {
-            points += (i + 1) * currOccurs[i];
+            points += (i + 1) * occurs[i];
         }
         return points;
     }
@@ -203,30 +192,25 @@ Combo* combos[]={new SingleCombo("Ones",   1),
                  new SingleCombo("Fours",  4),
                  new SingleCombo("Fives",  5),
                  new SingleCombo("Sixes",  6),
-                 new  SPermCombo("Three Pairs",        (int[]){2, 2, 2, 0, 0, 0}),
-                 new  SPermCombo("Two Triples",        (int[]){3, 3, 0, 0, 0, 0}),
-                 new   PermCombo("Four of a kind", 40, (int[]){4, 0, 0, 0, 0, 0}),
-                 new  FixedCombo("Kamerun",        45, (int[]){0, 0, 0, 1, 2, 3}),
-                 new  FixedCombo("Straight",       50, (int[]){1, 1, 1, 1, 1, 1}),
-                 new   PermCombo("Six of a kind",  60, (int[]){6, 0, 0, 0, 0, 0}),
-                 new  FixedCombo("General",        70, (int[]){0, 0, 0, 0, 0, 6}),
-                 new  FixedCombo("Despirala",      80, (int[]){5, 0, 0, 0, 0, 1})};
+                 new  SPermCombo("Three Pairs",        {2, 2, 2, 0, 0, 0}),
+                 new  SPermCombo("Two Triples",        {3, 3, 0, 0, 0, 0}),
+                 new   PermCombo("Four of a kind", 40, {4, 0, 0, 0, 0, 0}),
+                 new  FixedCombo("Kamerun",        45, {0, 0, 0, 1, 2, 3}),
+                 new  FixedCombo("Straight",       50, {1, 1, 1, 1, 1, 1}),
+                 new   PermCombo("Six of a kind",  60, {6, 0, 0, 0, 0, 0}),
+                 new  FixedCombo("General",        70, {0, 0, 0, 0, 0, 6}),
+                 new  FixedCombo("Despirala",      80, {5, 0, 0, 0, 0, 1})};
 
-int occursToCode(const int occurs[NUM_SIDES])
+int occursToCode(Occurs occurs)
 {
-    int occurs2[NUM_SIDES];
-    for (int i = 0; i < NUM_SIDES; ++i)
-    {
-        occurs2[i] = occurs[i];
-    }
-    std::sort(occurs2, occurs2 + NUM_SIDES, std::greater<int>());
+    std::sort(occurs.begin(), occurs.end(), std::greater<int>());
     int code = 1;
     int curr = 0;
     while (curr < NUM_SIDES)
     {
-        while (occurs2[curr])
+        while (occurs[curr])
         {
-            --occurs2[curr];
+            --occurs[curr];
             code *= 2;
         }
         code = code * 2 + 1;
@@ -236,12 +220,9 @@ int occursToCode(const int occurs[NUM_SIDES])
     return code;
 }
 
-bool codeToOccurs(int code, int occurs[NUM_SIDES])
+bool codeToOccurs(int code, Occurs& occurs)
 {
-    for (int i = 0; i < NUM_SIDES; ++i)
-    {
-        occurs[i] = 0;
-    }
+    occurs.fill(0);
     int n = NUM_SIDES + NUM_DICE;
     int instrNum = 0;
     int instrs[n + 1];
@@ -268,15 +249,12 @@ bool codeToOccurs(int code, int occurs[NUM_SIDES])
     return true;
 }
 
-void rollToOccurs(int roll, int occurs[NUM_SIDES])
+void rollToOccurs(int roll, Occurs& occurs)
 {
-    for (int i = 0; i < NUM_SIDES; ++i)
-    {
-        occurs[i] = 0;
-    }
+    occurs.fill(0);
     while (roll)
     {
-        --occurs[roll % NUM_SIDES];
+        ++occurs[roll % NUM_SIDES];
         roll /= NUM_SIDES;
     }
 }
@@ -286,7 +264,7 @@ int indexToCode[DIFF_CODES];
 
 void generateLefts()
 {
-    int occurs[NUM_SIDES];
+    Occurs occurs;
     int lastIdx = 0;
     for (int i = 0; i <= MAX_CODE; ++i)
     {
@@ -303,16 +281,13 @@ double rollsDistr[DIFF_CODES][MAX_GOODS + 1];
 
 void findRollsDistrSingle(int idx)
 {
-    int occurs[NUM_SIDES];
-    int occurs2[NUM_SIDES];
+    Occurs occurs;
+    Occurs occurs2;
     int code = indexToCode[idx];
     codeToOccurs(code, occurs);
     for (int i = 0; i < NUM_TRIALS_1; ++i)
     {
-        for (int i = 0; i < NUM_SIDES; ++i)
-        {
-            occurs2[i] = occurs[i];
-        }
+        occurs2 = occurs;
         bool changed = false;
         int rolls = 0;
         while (!changed)
@@ -395,16 +370,12 @@ bool operator<(const Move& a, const Move& b)
 }
 
 double getScore(int free, int goods);
+double getScoreCont(int free, int goods);
 double getCollScore(int free, int goods, int num, int left);
-
-int newGoods(int free)
-{
-    return free ? GOODS_PER_TURN : 0;
-}
 
 Move getCollMove(int free, int goods, int num, int left)
 {
-    Move best = Move(getScore(free, goods + newGoods(free)), "Stop");
+    Move best = Move(getScore(free, goods), "Stop");
     if (goods && left)
     {
         double sc = 0;
@@ -428,7 +399,7 @@ double getCollScore(int free, int goods, int num, int left)
     return collScore[free][goods][num][left];
 }
 
-double simulateMove(int free, int goods, const int occurs[NUM_SIDES], double reward)
+double simulateMove(int free, int goods, const Occurs& occurs, double reward)
 {
     double score = 0;
     int code = occursToCode(occurs);
@@ -441,15 +412,15 @@ double simulateMove(int free, int goods, const int occurs[NUM_SIDES], double rew
         if (currP > 0)
         {
             succP += currP;
-            score += currP * getScore(free, goods - i + newGoods(free));
+            score += currP * getScore(free, goods - i);
         }
     }
     score += succP * reward;
-    score += (1 - succP) * getScore(free, newGoods(free));
+    score += (1 - succP) * getScore(free, 0);
     return score;
 }
 
-Move getMove(int free, int goods, const int occurs[NUM_SIDES])
+Move getMove(int free, int goods, const Occurs& occurs)
 {
     Move best = Move(-1, "Error: no move found");
     for (int i = 0; i < NUM_COMBOS; ++i)
@@ -468,19 +439,20 @@ Move getMove(int free, int goods, const int occurs[NUM_SIDES])
             std::vector<Target> ts = combos[i]->getTargets(occurs);
             for (int j = 0; j < ts.size(); ++j)
             {
-                Target& t = ts[j];
+                const Target& t = ts[j];
+                Occurs newOccurs = t.occurs;
                 for (int i = 0; i < NUM_SIDES; ++i)
                 {
-                    t.occurs[i] = std::max(t.occurs[i] - occurs[i], 0);
+                    newOccurs[i] = std::max(newOccurs[i] - occurs[i], 0);
                 }
-                Move option = Move(simulateMove(newFree, goods, t.occurs, t.points), t.name);
+                Move option = Move(simulateMove(newFree, goods, newOccurs, t.points), t.name);
                 best = std::max(best, option);
             }
         }
     }
     if (goods > 0)
     {
-        Move option = Move(getScore(free, goods - 1), "Reroll");
+        Move option = Move(getScoreCont(free, goods - 1), "Reroll");
         best = std::max(best, option);
     }
     return best;
@@ -488,37 +460,40 @@ Move getMove(int free, int goods, const int occurs[NUM_SIDES])
 
 int cnt = 0;
 
-double getScore(int free, int goods)
+double getScoreCont(int free, int goods)
 {
     if (isFound[free][goods]) return score[free][goods];
     isFound[free][goods] = true;
-    if (free == 0) score[free][goods] = goods;
+    if (free == 0) score[free][goods] = goods * POINTS_PER_GOOD;
     else
     {
-        int occurs[NUM_SIDES];
+        Occurs occurs;
         for (int i = 0; i < NUM_TRIALS_2; ++i)
         {
-            for (int j = 0; j < NUM_SIDES; ++j)
-            {
-                occurs[j] = 0;
-            }
+            occurs.fill(0);
             for (int j = 0; j < NUM_DICE; ++j)
             {
                 ++occurs[rand() % NUM_SIDES];
             }
+            //rollToOccurs(rand() % MAX_ROLL, occurs);
             Move mov = getMove(free, goods, occurs);
             score[free][goods] += mov.score / NUM_TRIALS_2;
         }
     }
     ++cnt;
     //std::cerr << "score[" << free << "][" << goods << "] = " << score[free][goods] << "; // " << cnt << "\n";
-    //if (cnt % 10000 == 0) std::cerr << cnt << "\n";
+    if (cnt % 10000 == 0) std::cerr << cnt << "\n";
     return score[free][goods];
+}
+
+double getScore(int free, int goods)
+{
+    return free ? getScoreCont(free, goods + GOODS_PER_TURN) : getScoreCont(free, goods);
 }
 
 void findExpectedScores()
 {
-    getScore((1 << NUM_COMBOS) - 1, GOODS_PER_TURN);
+    getScore((1 << NUM_COMBOS) - 1, 0);
 }
 
 int main()
@@ -533,7 +508,7 @@ int main()
     std::cerr << "Found the distribution of number of dice left after roll." << std::endl;
     findExpectedScores();
     std::cerr << "Found the expected scores." << std::endl;
-    std::cerr << "Expected score for the game: " << score[(1 << NUM_COMBOS) - 1][GOODS_PER_TURN] << "." << std::endl;
+    std::cerr << "Expected score for the game: " << getScore((1 << NUM_COMBOS) - 1, 0) << "." << std::endl;
     std::cerr << "Considered " << cnt << " cases." << std::endl;
 
     return 0;
