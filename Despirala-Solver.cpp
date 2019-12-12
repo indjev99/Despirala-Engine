@@ -625,7 +625,7 @@ void printOccurs(const Occurs& occurs)
 }
 
 const std::string numNames[NUM_SIDES] = {"ones", "twos", "threes", "fours", "fives", "sixes"};
-void simCollMoves(State& s, int num, int left, int verbosity)
+void simCollMoves(State& s, int num, int left, int verbosity, bool interactive)
 {
     bool cont = true;
     while (cont)
@@ -633,11 +633,12 @@ void simCollMoves(State& s, int num, int left, int verbosity)
         cont = false;
         Move mv = getMoveColl(s.free, s.goods, num, left);
 
-        if (verbosity >= 4)
+        if (!interactive && verbosity >= 4)
         {
-            std::cout << "Have " << NUM_DICE - left << " " << numNames[num - 1] << " and " << s.goods << " goods." << std::endl;
+            std::cout << "Number of " << numNames[num - 1] << ": " << NUM_DICE - left << std::endl;
+            std::cout << "Goods: " << s.goods << std::endl;
         }
-        if (verbosity >= 3)
+        if (interactive || verbosity >= 3)
         {
             std::cout << "Move: " << mv.toString() << std::endl;
         }
@@ -652,9 +653,21 @@ void simCollMoves(State& s, int num, int left, int verbosity)
                 cont = true;
                 --s.goods;
                 int newHits = 0;
-                for (int i = 0; i < left; ++i)
+                if (!interactive)
                 {
-                    if (rand() % NUM_SIDES == 0) ++newHits;
+                    for (int i = 0; i < left; ++i)
+                    {
+                        if (rand() % NUM_SIDES == 0) ++newHits;
+                    }
+                }
+                else
+                {
+                    newHits = -1;
+                    std::cout << "Enter how many of the " << left << " dice landed as " << numNames[num - 1] << ": ";
+                    while (newHits < 0 || newHits > left)
+                    {
+                        std::cin >> newHits;
+                    }
                 }
                 left -= newHits;
             }
@@ -667,7 +680,7 @@ void simCollMoves(State& s, int num, int left, int verbosity)
     int reward = num * (NUM_DICE - left);
     s.score += reward;
 
-    if (verbosity >= 3)
+    if (interactive || verbosity >= 3)
     {
         std::cout << "Won " << reward << " points." << std::endl;
     }
@@ -703,7 +716,43 @@ void simRegMove(State& s, Occurs& occurs, int ed, int reward, int verbosity)
     }
 }
 
-int simGame(int verbosity=-1)
+void playRegMove(State& s, Occurs& occurs, int reward)
+{
+    int rolls = 0;
+
+    if (!isDone(occurs))
+    {
+        std::cout << "Number of rolls to complete the combination (-1 for if you didn't): ";
+        std::cin >> rolls;
+    }
+
+    if (rolls >= 0 && rolls <= s.goods)
+    {
+        s.goods -= rolls;
+        s.score += reward;
+        std::cout << "Won " << reward << " points." << std::endl;
+    }
+    else
+    {
+        s.goods = 0;
+        std::cout << "Didn't complete the combination." << std::endl;
+    }
+}
+
+void chooseOcc(Occurs& occurs)
+{
+    occurs.fill(0);
+    std::cout << "Rolled: ";
+    int side;
+    for (int i = 0; i < NUM_DICE; ++i)
+    {
+        std::cin >> side;
+        if (side >= 1 && side <= NUM_SIDES) ++occurs[side - 1];
+        else --i;
+    }
+}
+
+int simGame(int verbosity=-1, bool interactive=false)
 {
     State s;
     Occurs diceOccurs;
@@ -711,18 +760,26 @@ int simGame(int verbosity=-1)
 
     while (!s.fail && s.free)
     {
+        if ((interactive || verbosity >= 1) && finishedTurn)
+        {
+            std::cout << "Current score:  " << s.score << std::endl;
+        }
+
+        if (!interactive) randOcc(diceOccurs);
+        else chooseOcc(diceOccurs);
+
+        if (!interactive && verbosity >= 2)
+        {
+            std::cout << "Rolled: ";
+            printOccurs(diceOccurs);
+        }
+
         if (finishedTurn) s.goods += GOODS_PER_TURN;
-        randOcc(diceOccurs);
         Move mv = getMove(s.free, s.goods, diceOccurs);
 
-        if (verbosity >= 1)
+        if (interactive || verbosity >= 1)
         {
-            std::cout << "Have " << s.score << " points and " << s.goods << " goods." << std::endl;
-            if (verbosity >= 2)
-            {
-                std::cout << "Rolled: ";
-                printOccurs(diceOccurs);
-            }
+            std::cout << "Goods: " << s.goods << std::endl;
             std::cout << "Move: " << mv.toString() << std::endl;
         }
 
@@ -749,7 +806,7 @@ int simGame(int verbosity=-1)
                 int num = combos[id]->getNumber();
                 if (num)
                 {
-                    simCollMoves(s, num, NUM_DICE - diceOccurs[num - 1], verbosity);
+                    simCollMoves(s, num, NUM_DICE - diceOccurs[num - 1], verbosity, interactive);
                 }
                 else
                 {
@@ -757,19 +814,29 @@ int simGame(int verbosity=-1)
                     Occurs newOccurs = t.occurs;
                     int extraDice = calcExtraDice(newOccurs);
                     remOcc(diceOccurs, newOccurs);
-                    simRegMove(s, newOccurs, extraDice, t.points, verbosity);
+                    if (!interactive) simRegMove(s, newOccurs, extraDice, t.points, verbosity);
+                    else playRegMove(s, newOccurs, t.points);
                 }
                 finishedTurn = true;
             }
             else s.fail = true;
 
-            if (verbosity >= 1 && finishedTurn) std::cout << std::endl;
+            if ((interactive || verbosity >= 1) && finishedTurn) std::cout << std::endl;
         }
+    }
+
+    if (s.fail)
+    {
+        std::cout << "Encountered error!" << std::endl;
+        return 0;
     }
 
     int score = s.score + s.goods * POINTS_PER_GOOD;
 
-    if (verbosity >= 0) std::cout << "Final score: " << score << std::endl;
+    if (interactive || verbosity >= 0)
+    {
+        std::cout << "Final score: " << score << std::endl;
+    }
 
     return score;
 }
@@ -921,7 +988,7 @@ void fitModel()
     std::cout << "\nConsidered " << cnt << " cases." << std::endl;
 }
 
-const std::string help = "Possible commands: stop, help, example, test, expected.";
+const std::string help = "Possible commands: stop, help, example, play, test, expected.";
 void shell()
 {
     std::string cmd;
@@ -943,6 +1010,11 @@ void shell()
             std::cin >> verbosity;
             std::cout << std::endl;
             simGame(verbosity);
+        }
+        else if (cmd == "play")
+        {
+            std::cout << std::endl;
+            simGame(0, true);
         }
         else if (cmd == "test")
         {
