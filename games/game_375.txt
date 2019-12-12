@@ -1,0 +1,223 @@
+Have 0 points and 5 goods.
+Rolled: 1 2 3 4 5 6
+Move: Straight
+Took 0 rolls.
+Won 50 points.
+
+Have 50 points and 10 goods.
+Rolled: 1 2 4 5 5 6
+Move: Collect 1
+Have 1 ones and 10 goods.
+Move: Stop collecting
+Won 1 points.
+
+Have 51 points and 15 goods.
+Rolled: 1 1 3 3 5 5
+Move: Three pairs 5 3 1
+Took 0 rolls.
+Won 18 points.
+
+Have 69 points and 20 goods.
+Rolled: 3 3 4 4 6 6
+Move: Collect 3
+Have 2 threes and 20 goods.
+Move: Stop collecting
+Won 6 points.
+
+Have 75 points and 25 goods.
+Rolled: 2 3 3 4 4 5
+Move: Collect 4
+Have 2 fours and 25 goods.
+Move: Continue collecting
+Have 3 fours and 24 goods.
+Move: Stop collecting
+Won 12 points.
+
+Have 87 points and 29 goods.
+Rolled: 2 3 4 4 6 6
+Move: General
+Took 11 rolls.
+Won 70 points.
+
+Have 157 points and 23 goods.
+Rolled: 1 1 2 2 2 6
+Move: Collect 2
+Have 3 twos and 23 goods.
+Move: Stop collecting
+Won 6 points.
+
+Have 163 points and 28 goods.
+Rolled: 1 2 5 6 6 6
+Move: Collect 6
+Have 3 sixes and 28 goods.
+Move: Continue collecting
+Have 3 sixes and 27 goods.
+Move: Continue collecting
+Have 4 sixes and 26 goods.
+Move: Continue collecting
+Have 5 sixes and 25 goods.
+Move: Stop collecting
+Won 30 points.
+
+Have 193 points and 30 goods.
+Rolled: 2 2 4 4 6 6
+Move: Two triples 6 4
+Took 11 rolls.
+Won 30 points.
+
+Have 223 points and 24 goods.
+Rolled: 1 4 4 4 4 5
+Move: Four of a kind 4
+Took 0 rolls.
+Won 40 points.
+
+Have 263 points and 29 goods.
+Rolled: 1 2 2 3 4 4
+Move: Despirala
+Took 12 rolls.
+Won 80 points.
+
+Have 343 points and 22 goods.
+Rolled: 1 1 2 2 3 6
+Move: Reroll
+Have 343 points and 21 goods.
+Rolled: 2 2 2 3 3 6
+Move: Six of a kind 2
+Took 4 rolls.
+Won 60 points.
+
+Have 403 points and 22 goods.
+Rolled: 1 3 3 4 4 5
+Move: Reroll
+Have 403 points and 21 goods.
+Rolled: 3 3 4 4 4 5
+Move: Reroll
+Have 403 points and 20 goods.
+Rolled: 2 2 3 3 6 6
+Move: Kamerun
+Took 8 rolls.
+Won 45 points.
+
+Have 448 points and 17 goods.
+Rolled: 3 5 5 6 6 6
+Move: Collect 5
+Have 2 fives and 17 goods.
+Move: Continue collecting
+Have 2 fives and 16 goods.
+Move: Continue collecting
+Have 3 fives and 15 goods.
+Move: Continue collecting
+Have 4 fives and 14 goods.
+Move: Continue collecting
+Have 4 fives and 13 goods.
+Move: Continue collecting
+Have 4 fives and 12 goods.
+Move: Continue collecting
+Have 4 fives and 11 goods.
+Move: Continue collecting
+Have 4 fives and 10 goods.
+Move: Continue collecting
+Have 4 fives and 9 goods.
+Move: Continue collecting
+Have 5 fives and 8 goods.
+Move: Stop collecting
+Won 25 points.
+
+Final score: 481
+
+Enter command: example 4
+Verbosity (0 - 5):
+Have 0 points and 5 goods.
+Rolled: 2 4 4 5 5 6
+Move: Reroll
+Have 0 points and 4 goods.
+Rolled: 1 1 3 3 6 6
+Move: Three pairs 6 3 1
+Took 0 rolls.
+Won 20 points.
+
+Have 20 points and 9 goods.
+Rolled: 1 2 4 4 4 6
+Move: Collect 4
+Have 3 fours and 9 goods.
+Move: Stop collecting
+Won 12 points.
+
+Have 32 points and 14 goods.
+Rolled: 1 2 2 5 5 6
+Move: Collect 2
+Have 2 twos and 14 goods.
+Move: Stop collecting
+Won 4 points.
+
+Have 36 points and 19 goods.
+Rolled: 1 2 4 5 5 5
+Move: Collect 5
+Have 3 fives and 19 goods.
+Move: Stop collecting
+Won 15 points.
+
+Have 51 points and 24 goods.
+Rolled: 1 2 2 4 5 6
+Move: Collect 1
+Have 1 ones and 24 goods.
+Move: Stop collecting
+Won 1 points.
+
+Have 52 points and 29 goods.
+Rolled: 1 2 2 6 6 6
+Move: General
+Took 29 rolls.
+Didn't complete the combination.
+
+Have 52 points and 5 goods.
+Rolled: 2 2 3 3 4 6
+Move: Collect 3
+Have 2 threes and 5 goods.
+Move: Stop collecting
+Won 6 points.
+
+Have 58 points and 10 goods.
+Rolled: 1 2 3 4 4 5
+Move: Straight
+Took 5 rolls.
+Won 50 points.
+
+Have 108 points and 10 goods.
+Rolled: 1 2 3 4 5 6
+Move: Collect 6
+Have 1 sixes and 10 goods.
+Move: Stop collecting
+Won 6 points.
+
+Have 114 points and 15 goods.
+Rolled: 1 1 2 3 5 5
+Move: Despirala
+Took 6 rolls.
+Won 80 points.
+
+Have 194 points and 14 goods.
+Rolled: 2 2 3 3 5 6
+Move: Four of a kind 3
+Took 2 rolls.
+Won 40 points.
+
+Have 234 points and 17 goods.
+Rolled: 2 3 3 4 6 6
+Move: Kamerun
+Took 3 rolls.
+Won 45 points.
+
+Have 279 points and 19 goods.
+Rolled: 1 2 3 4 6 6
+Move: Six of a kind 6
+Took 17 rolls.
+Won 60 points.
+
+Have 339 points and 7 goods.
+Rolled: 2 3 4 5 5 6
+Move: Two triples 5 6
+Took 4 rolls.
+Won 33 points.
+
+Final score: 375
