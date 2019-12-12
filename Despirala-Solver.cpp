@@ -563,7 +563,6 @@ Move getMove(int free, int goods, const Occurs& diceOccurs)
     return best;
 }
 
-bool fitPrint = false;
 int cnt = 0;
 
 double getScoreCont(int free, int goods)
@@ -582,7 +581,7 @@ double getScoreCont(int free, int goods)
         }
     }
     ++cnt;
-    if (fitPrint && cnt % 10000 == 0) std::cerr << ".";
+    if (cnt % 10000 == 0) std::cerr << ".";
     return score[free][goods];
 }
 
@@ -915,12 +914,10 @@ bool loadModel()
 void fitModel()
 {
     std::cout << "Fitting the model." << std::endl;
-    fitPrint = true;
     generateLefts();
     findRollsDistr();
     findLeftDistr();
     findExpectedScores();
-    fitPrint = false;
     std::cout << "\nConsidered " << cnt << " cases." << std::endl;
 }
 
