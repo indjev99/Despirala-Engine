@@ -563,6 +563,7 @@ Move getMove(int free, int goods, const Occurs& diceOccurs)
     return best;
 }
 
+bool fitPrint = false;
 int cnt = 0;
 
 double getScoreCont(int free, int goods)
@@ -581,8 +582,7 @@ double getScoreCont(int free, int goods)
         }
     }
     ++cnt;
-    //std::cerr << "score[" << free << "][" << goods << "] = " << score[free][goods] << "; // " << cnt << "\n";
-    //if (cnt % 10000 == 0) std::cerr << cnt << "\n";
+    if (fitPrint && cnt % 10000 == 0) std::cerr << ".";
     return score[free][goods];
 }
 
@@ -775,15 +775,13 @@ int simGame(int verbosity=-1)
     return score;
 }
 
-#define INF 1e9
-
 struct Stats
 {
     double mean;
     double stdev;
     int median;
-    int perc5 = INF;
-    int perc95 = -INF;
+    int perc5;
+    int perc95;
     std::vector<int> modes;
 };
 
@@ -875,9 +873,9 @@ bool loadModel()
     std::string name = "model_" + std::to_string(NUM_TRIALS_2);
     std::ifstream file(name.c_str());
 
-    std::cout << "Loading the model from " << name << "." << std::endl;
-
     if (!file) return false;
+
+    std::cout << "Loading the model from " << name << "." << std::endl;
 
     for (int i = 0; i < DIFF_CODES; ++i)
     {
@@ -914,22 +912,16 @@ bool loadModel()
     return true;
 }
 
-void trainModel()
+void fitModel()
 {
-    std::cout << "Training the model." << std::endl;
-
+    std::cout << "Fitting the model." << std::endl;
+    fitPrint = true;
     generateLefts();
-    std::cout << "Generated possible things left to roll." << std::endl;
-
     findRollsDistr();
-    std::cout << "Found the distribution of dice rolls needed for them." << std::endl;
-
     findLeftDistr();
-    std::cout << "Found the distribution of number of dice left after roll." << std::endl;
-
     findExpectedScores();
-    std::cout << "Found the expected scores." << std::endl;
-    std::cout << "Considered " << cnt << " cases." << std::endl;
+    fitPrint = false;
+    std::cout << "\nConsidered " << cnt << " cases." << std::endl;
 }
 
 const std::string help = "Possible commands: stop, help, example, test, expected.";
@@ -990,7 +982,7 @@ int main()
 
     if (!loadModel())
     {
-        trainModel();
+        fitModel();
         storeModel();
     }
 
