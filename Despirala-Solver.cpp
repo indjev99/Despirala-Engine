@@ -988,7 +988,8 @@ void fitModel()
     std::cout << "\nConsidered " << cnt << " cases." << std::endl;
 }
 
-const std::string help = "Possible commands: stop, help, example, play, test, expected.";
+const std::string help = "Possible commands: example, play, test, expected, credits, help, exit.";
+const std::string credits = "Made by Emil Indzhev.";
 void shell()
 {
     std::string cmd;
@@ -998,12 +999,7 @@ void shell()
         std::cout << "\nEnter command: ";
         std::cin >> cmd;
 
-        if (cmd == "stop") break;
-        if (cmd == "help")
-        {
-            std::cout << help << std::endl;
-        }
-        else if (cmd == "example")
+        if (cmd == "example")
         {
             int verbosity;
             std::cout << "Verbosity (0 - 5): ";
@@ -1039,6 +1035,15 @@ void shell()
         {
             std::cout << "Expected score: " << getScore(NUM_MASKS - 1, 0) << std::endl;
         }
+        if (cmd == "credits")
+        {
+            std::cout << credits << std::endl;
+        }
+        if (cmd == "help")
+        {
+            std::cout << help << std::endl;
+        }
+        if (cmd == "exit") break;
     }
 }
 
