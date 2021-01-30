@@ -4,22 +4,27 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <numeric>
 #include <math.h>
 #include <stdlib.h>
 #include <time.h>
 
+// Game configuration
 const int NUM_DICE = 6;
 const int NUM_SIDES = 6;
-const int MAX_ROLL = 46656; // NUM_DICE ^ NUM_SIDES
-const int MAX_CODE = 1 << (NUM_SIDES + NUM_DICE);
-const int DIFF_CODES = 30;
 const int NUM_COMBOS = 14;
-const int NUM_MASKS = 1 << NUM_COMBOS;
 const int GOODS_PER_TURN = 5;
 const int POINTS_PER_GOOD = 1;
+
+// Depends on game configuration
+const int MAX_ROLL = 46656; // NUM_DICE ^ NUM_SIDES
+const int MAX_CODE = 1 << (NUM_SIDES + NUM_DICE);
+const int DIFF_CODES = 30; // Sum_{0 <= k <= NUM_DICE} #ways to partition k into at most NUM_SIDES partitions
+const int NUM_MASKS = 1 << NUM_COMBOS;
 const int MAX_GOODS = NUM_COMBOS * GOODS_PER_TURN;
-const int NUM_TRIALS_1 = 100000;
-int NUM_TRIALS_2;
+
+const int NUM_TRIALS_1 = 100000; // Trials for rolls distribution
+int NUM_TRIALS_2; // Trials per state
 
 typedef std::array<int, NUM_SIDES> Occurs;
 
@@ -167,7 +172,7 @@ protected:
     static void makeOccursByArgs(const Occurs& templateOccurs, const std::vector<int>& args, Occurs& occurs)
     {
         occurs.fill(0);
-        for (int i = 0; i < args.size(); ++i)
+        for (int i = 0; i < (int) args.size(); ++i)
         {
             occurs[args[i] - 1] = templateOccurs[NUM_SIDES - i - 1];
         }
@@ -224,6 +229,7 @@ protected:
     }
 };
 
+// Game configuration
 Combo* combos[]={new CollectCombo("Collect", 1),
                  new CollectCombo("Collect", 2),
                  new CollectCombo("Collect", 3),
@@ -238,6 +244,9 @@ Combo* combos[]={new CollectCombo("Collect", 1),
                  new    PermCombo("Six of a kind",  60, {6, 0, 0, 0, 0, 0}),
                  new   FixedCombo("General",        70, {0, 0, 0, 0, 0, 6}),
                  new   FixedCombo("Despirala",      80, {5, 0, 0, 0, 0, 1})};
+
+// Depends on game configuration
+const int MIN_COMB_DICE = 4;
 
 int occursToCode(Occurs occurs)
 {
@@ -348,7 +357,7 @@ void generateLefts()
     }
 }
 
-const int MAX_EXTRA_DICE = 2;
+const int MAX_EXTRA_DICE = NUM_DICE - MIN_COMB_DICE;
 double rollsDistr[MAX_EXTRA_DICE + 1][DIFF_CODES][MAX_GOODS + 1];
 
 void findRollsDistrSingle(int ed, int idx)
