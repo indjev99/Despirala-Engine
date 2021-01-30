@@ -53,7 +53,7 @@ struct Combo
     {
         return name;
     }
-    virtual int getNumber() const
+    virtual int getCollectNumber() const
     {
         return 0;
     }
@@ -82,7 +82,7 @@ struct CollectCombo : Combo
     CollectCombo(const std::string& name, int number):
         Combo(name, 0),
         number(number) {}
-    int getNumber() const
+    int getCollectNumber() const
     {
         return number;
     }
@@ -544,7 +544,7 @@ Move getMove(int free, int goods, const Occurs& diceOccurs)
     {
         if (!isFree(free, i)) continue;
         int newFree = setUsed(free, i);
-        int num = combos[i]->getNumber();
+        int num = combos[i]->getCollectNumber();
         if (num)
         {
             int curr = diceOccurs[num - 1];
@@ -634,7 +634,7 @@ void printOccurs(const Occurs& occurs)
 }
 
 const std::string numNames[NUM_SIDES] = {"ones", "twos", "threes", "fours", "fives", "sixes"};
-void simCollMoves(State& s, int num, int left, int verbosity, bool interactive)
+void simCollMoves(State& s, int num, int left, int verbosity, bool manualRolls)
 {
     bool cont = true;
     while (cont)
@@ -642,12 +642,12 @@ void simCollMoves(State& s, int num, int left, int verbosity, bool interactive)
         cont = false;
         Move mv = getMoveColl(s.free, s.goods, num, left);
 
-        if (!interactive && verbosity >= 4)
+        if (verbosity >= 4)
         {
             std::cout << "Number of " << numNames[num - 1] << ": " << NUM_DICE - left << std::endl;
             std::cout << "Goods: " << s.goods << std::endl;
         }
-        if (interactive || verbosity >= 3)
+        if (verbosity >= 3)
         {
             std::cout << "Move: " << mv.toString() << std::endl;
         }
@@ -662,7 +662,7 @@ void simCollMoves(State& s, int num, int left, int verbosity, bool interactive)
                 cont = true;
                 --s.goods;
                 int newHits = 0;
-                if (!interactive)
+                if (!manualRolls)
                 {
                     for (int i = 0; i < left; ++i)
                     {
@@ -689,7 +689,7 @@ void simCollMoves(State& s, int num, int left, int verbosity, bool interactive)
     int reward = num * (NUM_DICE - left);
     s.score += reward;
 
-    if (interactive || verbosity >= 3)
+    if (verbosity >= 3)
     {
         std::cout << "Won " << reward << " points." << std::endl;
     }
@@ -705,7 +705,7 @@ void simRegMove(State& s, Occurs& occurs, int ed, int reward, int verbosity)
     int rolls = 0;
     while (!isDone(occurs) && rolls < s.goods)
     {
-        if (verbosity >= 5)
+        if (verbosity >= 4)
         {
             std::cout << "Need: ";
             printOccurs(occurs);
@@ -761,7 +761,7 @@ void chooseOcc(Occurs& occurs)
     }
 }
 
-int simGame(int verbosity=-1, bool interactive=false)
+int simGame(int verbosity=-1, bool manualRolls=false)
 {
     State s;
     Occurs diceOccurs;
@@ -769,15 +769,15 @@ int simGame(int verbosity=-1, bool interactive=false)
 
     while (!s.fail && s.free)
     {
-        if ((interactive || verbosity >= 1) && finishedTurn)
+        if (verbosity >= 1 && finishedTurn)
         {
             std::cout << "Current score:  " << s.score << std::endl;
         }
 
-        if (!interactive) randOcc(diceOccurs);
+        if (!manualRolls) randOcc(diceOccurs);
         else chooseOcc(diceOccurs);
 
-        if (!interactive && verbosity >= 2)
+        if (!manualRolls && verbosity >= 2)
         {
             std::cout << "Rolled: ";
             printOccurs(diceOccurs);
@@ -786,7 +786,7 @@ int simGame(int verbosity=-1, bool interactive=false)
         if (finishedTurn) s.goods += GOODS_PER_TURN;
         Move mv = getMove(s.free, s.goods, diceOccurs);
 
-        if (interactive || verbosity >= 1)
+        if (verbosity >= 1)
         {
             std::cout << "Goods: " << s.goods << std::endl;
             std::cout << "Move: " << mv.toString() << std::endl;
@@ -812,10 +812,10 @@ int simGame(int verbosity=-1, bool interactive=false)
             if (isFree(s.free, id))
             {
                 s.free = setUsed(s.free, id);
-                int num = combos[id]->getNumber();
+                int num = combos[id]->getCollectNumber();
                 if (num)
                 {
-                    simCollMoves(s, num, NUM_DICE - diceOccurs[num - 1], verbosity, interactive);
+                    simCollMoves(s, num, NUM_DICE - diceOccurs[num - 1], verbosity, manualRolls);
                 }
                 else
                 {
@@ -823,14 +823,14 @@ int simGame(int verbosity=-1, bool interactive=false)
                     Occurs newOccurs = t.occurs;
                     int extraDice = calcExtraDice(newOccurs);
                     remOcc(diceOccurs, newOccurs);
-                    if (!interactive) simRegMove(s, newOccurs, extraDice, t.points, verbosity);
+                    if (!manualRolls) simRegMove(s, newOccurs, extraDice, t.points, verbosity);
                     else playRegMove(s, newOccurs, t.points);
                 }
                 finishedTurn = true;
             }
             else s.fail = true;
 
-            if ((interactive || verbosity >= 1) && finishedTurn) std::cout << std::endl;
+            if (verbosity >= 1 && finishedTurn) std::cout << std::endl;
         }
     }
 
@@ -842,7 +842,7 @@ int simGame(int verbosity=-1, bool interactive=false)
 
     int score = s.score + s.goods * POINTS_PER_GOOD;
 
-    if (interactive || verbosity >= 0)
+    if (verbosity >= 0)
     {
         std::cout << "Final score: " << score << std::endl;
     }
@@ -1011,12 +1011,12 @@ void shell()
         if (cmd == "play" || cmd == "p")
         {
             std::cout << std::endl;
-            simGame(0, true);
+            simGame(3, true);
         }
         else if (cmd == "example" || cmd == "e")
         {
             int verbosity;
-            std::cout << "Verbosity (0 - 5): ";
+            std::cout << "Verbosity (0 - 4): ";
             std::cin >> verbosity;
             std::cout << std::endl;
             simGame(verbosity);
