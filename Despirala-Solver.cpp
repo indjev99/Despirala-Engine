@@ -1,9 +1,11 @@
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <algorithm>
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <numeric>
 #include <math.h>
 #include <stdlib.h>
@@ -53,6 +55,10 @@ struct Combo
     {
         return name;
     }
+    virtual int getNumArgs() const
+    {
+        return 0;
+    }
     virtual int getCollectNumber() const
     {
         return 0;
@@ -82,10 +88,15 @@ struct CollectCombo : Combo
     CollectCombo(const std::string& name, int number):
         Combo(name, 0),
         number(number) {}
+    int getNumArgs() const
+    {
+        return 1;
+    }
     int getCollectNumber() const
     {
         return number;
     }
+    
 
 protected:
     int number;
@@ -116,6 +127,15 @@ public:
     PermCombo(const std::string& name, int points, const Occurs& occurs):
         Combo(name, points),
         templateOccurs(sortedOccurs(occurs)) {}
+    int getNumArgs() const
+    {
+        int numArgs = 0;
+        for (int occ : templateOccurs)
+        {
+            if (occ > 0) ++numArgs;
+        }
+        return numArgs;
+    }
     std::vector<Target> getTargets(const Occurs& diceOccurs)
     {
         int code = 0;
@@ -424,10 +444,22 @@ int setUsed(int free, int idx)
 {
     return free - (1 << idx);
 }
+
 bool isFound[NUM_MASKS][MAX_GOODS + 1];
 double score[NUM_MASKS][MAX_GOODS + 1];
 bool isFoundColl[NUM_MASKS][MAX_GOODS + 1][NUM_SIDES][NUM_DICE + 1];
 double collScore[NUM_MASKS][MAX_GOODS + 1][NUM_SIDES][NUM_DICE + 1];
+
+std::string stringToLower(std::string s)
+{
+    std::transform(s.begin(), s.end(), s.begin(), [](char c){ return std::tolower(c); });
+    return s;
+}
+
+bool isNumber(const std::string& s)
+{
+    return all_of(s.begin(), s.end(), [](char c){ return std::isdigit(c); });
+}
 
 #define STOP_COLL -1
 #define CONT_COLL -2
@@ -440,14 +472,49 @@ struct Move
     std::vector<int> args;
     double score;
 
-    Move(int id, double score):
-        id(id),
-        args({}),
-        score(score) {}
     Move(int id, const std::vector<int>& args, double score):
         id(id),
         args(args),
         score(score) {}
+    Move(int id, double score):
+        Move(id, {}, score) {}
+    
+    Move(const std::string& name, const std::vector<int>& args):
+        Move(ERROR, args, 0)
+    {
+        std::unordered_set<int> freeArgs;
+        for (int i = 0; i < NUM_SIDES; ++i)
+        {
+            freeArgs.insert(i + 1);
+        }
+
+        for (int arg : args)
+        {
+            auto it = freeArgs.find(arg);
+            if (it == freeArgs.end()) return;
+            freeArgs.erase(it);
+        }
+
+        if (name == "stop collecting" || name == "stop") id = STOP_COLL;
+        else if (name == "continue collecting" || name == "continue") id = CONT_COLL;
+        else if (name == "reroll") id = REROLL;
+        else
+        {
+            for (int i = 0; i < NUM_COMBOS; ++i)
+            {
+                if (name == stringToLower(combos[i]->getName()) && (int) args.size() == combos[i]->getNumArgs())
+                {
+                    int num = combos[i]->getCollectNumber();
+                    if (!num || (!args.empty() && num == args[0]))
+                    {
+                        id = i;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    
     std::string toString() const
     {
         std::string s;
@@ -485,17 +552,22 @@ double getScore(int free, int goods);
 double getScoreCont(int free, int goods);
 double getScoreColl(int free, int goods, int num, int left);
 
+double getScoreCollContinue(int free, int goods, int num, int left)
+{
+    double sc = 0;
+    for (int i = 0 ; i <= left; ++i)
+    {
+        sc += leftDistr[left][i] * ((left - i) * num + getScoreColl(free, goods - 1, num, i));
+    }
+    return sc;
+}
+
 Move getMoveColl(int free, int goods, int num, int left)
 {
     Move best = Move(STOP_COLL, getScore(free, goods));
     if (goods && left)
     {
-        double sc = 0;
-        for (int i = 0 ; i <= left; ++i)
-        {
-            sc += leftDistr[left][i] * ((left - i) * num + getScoreColl(free, goods - 1, num, i));
-        }
-        Move option = Move(CONT_COLL, sc);
+        Move option = Move(CONT_COLL, getScoreCollContinue(free, goods, num, left));
         best = std::max(best, option);
     }
     return best;
@@ -516,7 +588,7 @@ int calcExtraDice(const Occurs& occurs)
     return NUM_DICE - std::accumulate(occurs.begin(), occurs.end(), 0);
 }
 
-double getMoveScore(int free, int goods, const Occurs& occurs, int extraDice, double reward)
+double getMoveScore(int free, int goods, const Occurs& occurs, int extraDice, int reward)
 {
     double score = 0;
     int code = occursToCode(occurs);
@@ -604,9 +676,11 @@ double getInitialScore()
     return getScore(NUM_MASKS - 1, 0);
 }
 
-#define NONE 0
-#define LUCK 1
-#define SKILL 2
+const int NUM_REASONS = 3;
+
+#define LUCK 0
+#define SKILL 1
+#define NONE 2
 
 const double EPS = 1e-6;
 
@@ -618,6 +692,8 @@ struct State
     double expScore;
     bool fail;
 
+    double scoreByReason[NUM_REASONS];
+
     State():
         free(NUM_MASKS - 1),
         goods(0),
@@ -627,12 +703,21 @@ struct State
 
     void updateExpScore(double newExpScore, int reason)
     {
-        bool print = reason != NONE || fabs(newExpScore - expScore) > EPS;
-        if (print && reason == NONE) std::cout << "No reason: ";
+        newExpScore += score;
+        bool print = reason == LUCK || fabs(newExpScore - expScore) > EPS;
         if (print && reason == LUCK) std::cout << "Luck: ";
-        if (print && reason == SKILL) std::cout << "Skill: ";
+        if (print && reason == SKILL) std::cout << "Mistake: ";
+        if (print && reason == NONE) std::cout << "(Warning) No reason: ";
         if (print) std::cout << newExpScore - expScore << std::endl;
         expScore = newExpScore;
+    }
+
+    void printScoreByReason()
+    {
+        std::cout << "Baseline score: " << getInitialScore() << std::endl;
+        std::cout << "Score due to luck: " << scoreByReason[LUCK] << std::endl;
+        std::cout << "Score due to mistakes: " << scoreByReason[SKILL] << std::endl;
+        if (fabs(scoreByReason[NONE]) > EPS) std::cout << "(Warning) Score for no reason: " << scoreByReason[NONE] << std::endl;
     }
 };
 
@@ -651,8 +736,33 @@ void printOccurs(const Occurs& occurs)
     std::cout << std::endl;
 }
 
+Move chooseMove()
+{
+    std::cout << "Move: ";
+    std::string s = "";
+    while (s == "")
+    {
+        std::getline(std::cin, s);
+    }
+    std::stringstream ss(stringToLower(s));
+
+    std::string name = "";
+    std::vector<int> args;
+    while (ss)
+    {
+        std::string word;
+        ss >> word;
+        if (word == "") continue;
+        if (isNumber(word)) args.push_back(stoi(word));
+        else if (name == "") name = word;
+        else name += " " + word;
+    }
+
+    return Move(name, args);
+}
+
 const std::string numNames[NUM_SIDES] = {"ones", "twos", "threes", "fours", "fives", "sixes"};
-void simCollMoves(State& s, int num, int collected, int verbosity, bool evalExp, bool manualRolls)
+void simCollMoves(State& s, int num, int collected, int verbosity, bool evalExp, bool manualRolls, bool manualMoves)
 {
     bool first = true;
     bool cont = true;
@@ -664,18 +774,21 @@ void simCollMoves(State& s, int num, int collected, int verbosity, bool evalExp,
 
         if (evalExp)
         {
-            s.updateExpScore(s.score + num * collected + bestMv.score, first ? NONE : LUCK);
+            s.updateExpScore(num * collected + bestMv.score, first ? NONE : LUCK);
             first = false;
         }
 
-        Move mv = bestMv;
-
         if (verbosity >= 4)
         {
-            std::cout << "Number of " << numNames[num - 1] << ": " << collected << std::endl;
+            std::cout << "Number of " << numNames[num - 1] << " collected: " << collected << std::endl;
             std::cout << "Goods: " << s.goods << std::endl;
         }
-        if (verbosity >= 3)
+
+        moveSelectColl:
+
+        Move mv = manualMoves ? chooseMove() : bestMv;
+
+        if (!manualMoves && verbosity >= 3)
         {
             std::cout << "Move: " << mv.toString() << std::endl;
         }
@@ -683,10 +796,19 @@ void simCollMoves(State& s, int num, int collected, int verbosity, bool evalExp,
         switch (mv.id)
         {
         case STOP_COLL:
-            break;
-        case CONT_COLL:
-            if (s.goods)
+            if (evalExp)
             {
+                s.updateExpScore(num * collected + getScore(s.free, s.goods), SKILL);
+            }
+            break;
+        
+        case CONT_COLL:
+            if (s.goods && left)
+            {
+                if (evalExp)
+                {
+                    s.updateExpScore(num * collected + getScoreCollContinue(s.free, s.goods, num, left), SKILL);
+                }
                 cont = true;
                 --s.goods;
                 int newHits = 0;
@@ -696,11 +818,15 @@ void simCollMoves(State& s, int num, int collected, int verbosity, bool evalExp,
                     {
                         if (rand() % NUM_SIDES == 0) ++newHits;
                     }
+                    if (verbosity >= 3)
+                    {
+                        std::cout << "Number of " << numNames[num - 1] << " rolled: " << newHits << std::endl;
+                    }
                 }
                 else
                 {
                     newHits = -1;
-                    std::cout << "Enter how many of the " << left << " dice landed as " << numNames[num - 1] << ": ";
+                    std::cout << "Number of " << numNames[num - 1] << " rolled: ";
                     while (newHits < 0 || newHits > left)
                     {
                         std::cin >> newHits;
@@ -710,10 +836,23 @@ void simCollMoves(State& s, int num, int collected, int verbosity, bool evalExp,
             }
             else s.fail = true;
             break;
+
         default:
             s.fail = true;
         }
+
+        if (manualMoves && s.fail)
+        {
+            s.fail = false;
+            goto moveSelectColl;
+        }
     }
+    
+    if (verbosity >= 4)
+    {
+        std::cout << "Number of " << numNames[num - 1] << " collected: " << collected << std::endl;
+    }
+
     int reward = num * collected;
     s.score += reward;
 
@@ -764,20 +903,20 @@ void simRegMove(State& s, Occurs& occurs, int ed, int reward, int verbosity, boo
     s.goods -= rolls;
     if (won) s.score += reward;
 
-    if (!manualRolls && verbosity >= 3)
+    if (!manualRolls && verbosity >= 2)
     {
-        std::cout << "Took " << rolls << " rolls. " << std::endl;
+        if (won) std::cout << "Took " << rolls << " rolls to complete the combination. " << std::endl;
+        else std::cout << "Didn't complete the combination." << std::endl;
     }
 
     if (evalExp)
     {
-        s.updateExpScore(s.score + getScore(s.free, s.goods), instaDone ? NONE : LUCK);
+        s.updateExpScore(getScore(s.free, s.goods), instaDone ? NONE : LUCK);
     }
 
-    if (verbosity >= 2)
+    if (won && verbosity >= 3)
     {
-        if (won) std::cout << "Won " << reward << " points." << std::endl;
-        else std::cout << "Didn't complete the combination." << std::endl;
+        std::cout << "Won " << reward << " points." << std::endl;
     }
 }
 
@@ -794,7 +933,7 @@ void chooseOcc(Occurs& occurs)
     }
 }
 
-int simGame(int verbosity=-1, bool evalExp=false, bool manualRolls=false)
+int simGame(int verbosity=-1, bool evalExp=false, bool manualRolls=false, bool manualMoves=false)
 {
     State s;
     Occurs diceOccurs;
@@ -809,7 +948,7 @@ int simGame(int verbosity=-1, bool evalExp=false, bool manualRolls=false)
 
         if (evalExp && finishedTurn)
         {
-            s.updateExpScore(s.score + getScore(s.free, s.goods), NONE);
+            s.updateExpScore(getScore(s.free, s.goods), NONE);
             std::cout << "Expected final score: " << s.expScore << std::endl;
         }
 
@@ -827,14 +966,20 @@ int simGame(int verbosity=-1, bool evalExp=false, bool manualRolls=false)
 
         if (evalExp)
         {
-            s.updateExpScore(s.score + bestMv.score, LUCK);
+            s.updateExpScore(bestMv.score, LUCK);
         }
-
-        Move mv = bestMv;
 
         if (verbosity >= 1)
         {
             std::cout << "Goods: " << s.goods << std::endl;
+        }
+
+        moveSelect:
+
+        Move mv = manualMoves ? chooseMove() : bestMv;
+
+        if (!manualMoves && verbosity >= 1)
+        {
             std::cout << "Move: " << mv.toString() << std::endl;
         }
 
@@ -846,14 +991,20 @@ int simGame(int verbosity=-1, bool evalExp=false, bool manualRolls=false)
         case CONT_COLL:
             s.fail = true;
             break;
+        
         case REROLL:
             if (s.goods)
             {
                 --s.goods;
+                if (evalExp)
+                {
+                    s.updateExpScore(getScoreCont(s.free, s.goods), SKILL);
+                }
                 finishedTurn = false;
             }
             else s.fail = true;
             break;
+        
         default:
             if (isFree(s.free, id))
             {
@@ -861,7 +1012,12 @@ int simGame(int verbosity=-1, bool evalExp=false, bool manualRolls=false)
                 int num = combos[id]->getCollectNumber();
                 if (num)
                 {
-                    simCollMoves(s, num, diceOccurs[num - 1], verbosity, evalExp, manualRolls);
+                    int collected = diceOccurs[num - 1];
+                    if (evalExp)
+                    {
+                        s.updateExpScore(num * collected + getScoreColl(s.free, s.goods, num, NUM_DICE - collected), SKILL);
+                    }
+                    simCollMoves(s, num, collected, verbosity, evalExp, manualRolls, manualMoves);
                 }
                 else
                 {
@@ -869,6 +1025,10 @@ int simGame(int verbosity=-1, bool evalExp=false, bool manualRolls=false)
                     Occurs newOccurs = t.occurs;
                     int extraDice = calcExtraDice(newOccurs);
                     remOcc(diceOccurs, newOccurs);
+                    if (evalExp)
+                    {
+                        s.updateExpScore(getMoveScore(s.free, s.goods, newOccurs, extraDice, t.points), SKILL);
+                    }
                     simRegMove(s, newOccurs, extraDice, t.points, verbosity, evalExp, manualRolls);
                 }
                 finishedTurn = true;
@@ -876,6 +1036,12 @@ int simGame(int verbosity=-1, bool evalExp=false, bool manualRolls=false)
             else s.fail = true;
 
             if (verbosity >= 1 && finishedTurn) std::cout << std::endl;
+        }
+
+        if (manualMoves && s.fail)
+        {
+            s.fail = false;
+            goto moveSelect;
         }
     }
 
@@ -1056,7 +1222,7 @@ void shell()
         if (cmd == "play" || cmd == "p")
         {
             std::cout << std::endl;
-            simGame(3, true, true);
+            simGame(3, true, false, true);
         }
         else if (cmd == "example" || cmd == "e")
         {
