@@ -699,7 +699,10 @@ struct State
         goods(0),
         score(0),
         expScore(getInitialScore()),
-        fail(false) {}
+        fail(false)
+    {
+        std::fill(scoreByReason, scoreByReason + NUM_REASONS, 0);
+    }
 
     void updateExpScore(double newExpScore, int reason)
     {
@@ -709,6 +712,7 @@ struct State
         if (print && reason == SKILL) std::cout << "Mistake: ";
         if (print && reason == NONE) std::cout << "(Warning) No reason: ";
         if (print) std::cout << newExpScore - expScore << std::endl;
+        scoreByReason[reason] += newExpScore - expScore;
         expScore = newExpScore;
     }
 
@@ -938,9 +942,17 @@ int simGame(int verbosity=-1, bool evalExp=false, bool manualRolls=false, bool m
     State s;
     Occurs diceOccurs;
     bool finishedTurn = true;
+    int turn = 0;
 
     while (!s.fail && s.free)
     {
+        if (finishedTurn) ++turn;
+
+        if (verbosity >= 3 && finishedTurn)
+        {
+            std::cout << "Turn: " << turn << "/" << NUM_COMBOS << std::endl;
+        }
+
         if (verbosity >= 1 && finishedTurn)
         {
             std::cout << "Current score: " << s.score << std::endl;
@@ -1035,7 +1047,7 @@ int simGame(int verbosity=-1, bool evalExp=false, bool manualRolls=false, bool m
             }
             else s.fail = true;
 
-            if (verbosity >= 1 && finishedTurn) std::cout << std::endl;
+            if (!s.fail && verbosity >= 1 && finishedTurn) std::cout << std::endl;
         }
 
         if (manualMoves && s.fail)
@@ -1056,6 +1068,11 @@ int simGame(int verbosity=-1, bool evalExp=false, bool manualRolls=false, bool m
     if (verbosity >= 0)
     {
         std::cout << "Final score: " << score << std::endl;
+    }
+
+    if (evalExp)
+    {
+        s.printScoreByReason();
     }
 
     return score;
@@ -1221,8 +1238,21 @@ void shell()
 
         if (cmd == "play" || cmd == "p")
         {
+            bool evalExp;
+            bool manualRolls;
+            bool manualMoves;
+
+            std::cout << "Manual rolls (0 / 1): ";
+            std::cin >> manualRolls;
+
+            std::cout << "Manual moves (0 / 1): ";
+            std::cin >> manualMoves;
+
+            std::cout << "Evaluate luck and skill (0 / 1): ";
+            std::cin >> evalExp;
+
             std::cout << std::endl;
-            simGame(3, true, false, true);
+            simGame(3, evalExp, manualRolls, manualMoves);
         }
         else if (cmd == "example" || cmd == "e")
         {
@@ -1230,7 +1260,7 @@ void shell()
             std::cout << "Verbosity (0 - 4): ";
             std::cin >> verbosity;
             std::cout << std::endl;
-            simGame(verbosity, true);
+            simGame(verbosity, false);
         }
         else if (cmd == "test")
         {
