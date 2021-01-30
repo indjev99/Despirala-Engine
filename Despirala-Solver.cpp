@@ -599,23 +599,41 @@ double getScore(int free, int goods)
     return free ? getScoreCont(free, goods + GOODS_PER_TURN) : getScoreCont(free, goods);
 }
 
-void findExpectedScores()
+double getInitialScore()
 {
-    getScore(NUM_MASKS - 1, 0);
+    return getScore(NUM_MASKS - 1, 0);
 }
+
+#define NONE 0
+#define LUCK 1
+#define SKILL 2
+
+const double EPS = 1e-6;
 
 struct State
 {
     int free;
     int goods;
     int score;
+    double expScore;
     bool fail;
 
     State():
         free(NUM_MASKS - 1),
         goods(0),
         score(0),
+        expScore(getInitialScore()),
         fail(false) {}
+
+    void updateExpScore(double newExpScore, int reason)
+    {
+        bool print = reason != NONE || fabs(newExpScore - expScore) > EPS;
+        if (print && reason == NONE) std::cout << "No reason: ";
+        if (print && reason == LUCK) std::cout << "Luck: ";
+        if (print && reason == SKILL) std::cout << "Skill: ";
+        if (print) std::cout << newExpScore - expScore << std::endl;
+        expScore = newExpScore;
+    }
 };
 
 void printOccurs(const Occurs& occurs)
@@ -634,17 +652,27 @@ void printOccurs(const Occurs& occurs)
 }
 
 const std::string numNames[NUM_SIDES] = {"ones", "twos", "threes", "fours", "fives", "sixes"};
-void simCollMoves(State& s, int num, int left, int verbosity, bool manualRolls)
+void simCollMoves(State& s, int num, int collected, int verbosity, bool evalExp, bool manualRolls)
 {
+    bool first = true;
     bool cont = true;
     while (cont)
     {
         cont = false;
-        Move mv = getMoveColl(s.free, s.goods, num, left);
+        int left = NUM_DICE - collected;
+        Move bestMv = getMoveColl(s.free, s.goods, num, left);
+
+        if (evalExp)
+        {
+            s.updateExpScore(s.score + num * collected + bestMv.score, first ? NONE : LUCK);
+            first = false;
+        }
+
+        Move mv = bestMv;
 
         if (verbosity >= 4)
         {
-            std::cout << "Number of " << numNames[num - 1] << ": " << NUM_DICE - left << std::endl;
+            std::cout << "Number of " << numNames[num - 1] << ": " << collected << std::endl;
             std::cout << "Goods: " << s.goods << std::endl;
         }
         if (verbosity >= 3)
@@ -678,7 +706,7 @@ void simCollMoves(State& s, int num, int left, int verbosity, bool manualRolls)
                         std::cin >> newHits;
                     }
                 }
-                left -= newHits;
+                collected += newHits;
             }
             else s.fail = true;
             break;
@@ -686,10 +714,10 @@ void simCollMoves(State& s, int num, int left, int verbosity, bool manualRolls)
             s.fail = true;
         }
     }
-    int reward = num * (NUM_DICE - left);
+    int reward = num * collected;
     s.score += reward;
 
-    if (verbosity >= 3)
+    if (verbosity >= 2)
     {
         std::cout << "Won " << reward << " points." << std::endl;
     }
@@ -700,51 +728,56 @@ bool isDone(const Occurs& occurs)
     return std::all_of(occurs.begin(), occurs.end(), [](int n) {return n == 0;});
 }
 
-void simRegMove(State& s, Occurs& occurs, int ed, int reward, int verbosity)
+void simRegMove(State& s, Occurs& occurs, int ed, int reward, int verbosity, bool evalExp, bool manualRolls)
 {
+    bool instaDone = isDone(occurs);
     int rolls = 0;
-    while (!isDone(occurs) && rolls < s.goods)
+    bool won;
+
+    if (!manualRolls)
     {
-        if (verbosity >= 4)
+        while (!isDone(occurs) && rolls < s.goods)
         {
-            std::cout << "Need: ";
-            printOccurs(occurs);
+            if (verbosity >= 4)
+            {
+                std::cout << "Need: ";
+                printOccurs(occurs);
+            }
+
+            ++rolls;
+            randRemOcc(ed, occurs);
         }
-
-        ++rolls;
-        randRemOcc(ed, occurs);
-    }
-    s.goods -= rolls;
-    if (isDone(occurs)) s.score += reward;
-
-    if (verbosity >= 3)
-    {
-        std::cout << "Took " << rolls << " rolls. " << std::endl;
-        if (isDone(occurs)) std::cout << "Won " << reward << " points." << std::endl;
-        else std::cout << "Didn't complete the combination." << std::endl;
-    }
-}
-
-void playRegMove(State& s, Occurs& occurs, int reward)
-{
-    int rolls = 0;
-
-    if (!isDone(occurs))
-    {
-        std::cout << "Number of rolls to complete the combination (-1 for if you didn't): ";
-        std::cin >> rolls;
-    }
-
-    if (rolls >= 0 && rolls <= s.goods)
-    {
-        s.goods -= rolls;
-        s.score += reward;
-        std::cout << "Won " << reward << " points." << std::endl;
+        won = isDone(occurs);
     }
     else
     {
-        s.goods = 0;
-        std::cout << "Didn't complete the combination." << std::endl;
+        if (!isDone(occurs))
+        {
+            std::cout << "Number of rolls to complete the combination (-1 for if you didn't): ";
+            std::cin >> rolls;
+        }
+
+        won = rolls >= 0 && rolls <= s.goods;
+        if (!won) rolls = s.goods;
+    }
+
+    s.goods -= rolls;
+    if (won) s.score += reward;
+
+    if (!manualRolls && verbosity >= 3)
+    {
+        std::cout << "Took " << rolls << " rolls. " << std::endl;
+    }
+
+    if (evalExp)
+    {
+        s.updateExpScore(s.score + getScore(s.free, s.goods), instaDone ? NONE : LUCK);
+    }
+
+    if (verbosity >= 2)
+    {
+        if (won) std::cout << "Won " << reward << " points." << std::endl;
+        else std::cout << "Didn't complete the combination." << std::endl;
     }
 }
 
@@ -761,7 +794,7 @@ void chooseOcc(Occurs& occurs)
     }
 }
 
-int simGame(int verbosity=-1, bool manualRolls=false)
+int simGame(int verbosity=-1, bool evalExp=false, bool manualRolls=false)
 {
     State s;
     Occurs diceOccurs;
@@ -771,7 +804,13 @@ int simGame(int verbosity=-1, bool manualRolls=false)
     {
         if (verbosity >= 1 && finishedTurn)
         {
-            std::cout << "Current score:  " << s.score << std::endl;
+            std::cout << "Current score: " << s.score << std::endl;
+        }
+
+        if (evalExp && finishedTurn)
+        {
+            s.updateExpScore(s.score + getScore(s.free, s.goods), NONE);
+            std::cout << "Expected final score: " << s.expScore << std::endl;
         }
 
         if (!manualRolls) randOcc(diceOccurs);
@@ -784,7 +823,14 @@ int simGame(int verbosity=-1, bool manualRolls=false)
         }
 
         if (finishedTurn) s.goods += GOODS_PER_TURN;
-        Move mv = getMove(s.free, s.goods, diceOccurs);
+        Move bestMv = getMove(s.free, s.goods, diceOccurs);
+
+        if (evalExp)
+        {
+            s.updateExpScore(s.score + bestMv.score, LUCK);
+        }
+
+        Move mv = bestMv;
 
         if (verbosity >= 1)
         {
@@ -815,7 +861,7 @@ int simGame(int verbosity=-1, bool manualRolls=false)
                 int num = combos[id]->getCollectNumber();
                 if (num)
                 {
-                    simCollMoves(s, num, NUM_DICE - diceOccurs[num - 1], verbosity, manualRolls);
+                    simCollMoves(s, num, diceOccurs[num - 1], verbosity, evalExp, manualRolls);
                 }
                 else
                 {
@@ -823,8 +869,7 @@ int simGame(int verbosity=-1, bool manualRolls=false)
                     Occurs newOccurs = t.occurs;
                     int extraDice = calcExtraDice(newOccurs);
                     remOcc(diceOccurs, newOccurs);
-                    if (!manualRolls) simRegMove(s, newOccurs, extraDice, t.points, verbosity);
-                    else playRegMove(s, newOccurs, t.points);
+                    simRegMove(s, newOccurs, extraDice, t.points, verbosity, evalExp, manualRolls);
                 }
                 finishedTurn = true;
             }
@@ -993,7 +1038,7 @@ void fitModel()
     generateLefts();
     findRollsDistr();
     findLeftDistr();
-    findExpectedScores();
+    getInitialScore();
     std::cout << "\nConsidered " << cnt << " cases." << std::endl;
 }
 
@@ -1011,7 +1056,7 @@ void shell()
         if (cmd == "play" || cmd == "p")
         {
             std::cout << std::endl;
-            simGame(3, true);
+            simGame(3, true, true);
         }
         else if (cmd == "example" || cmd == "e")
         {
@@ -1019,7 +1064,7 @@ void shell()
             std::cout << "Verbosity (0 - 4): ";
             std::cin >> verbosity;
             std::cout << std::endl;
-            simGame(verbosity);
+            simGame(verbosity, true);
         }
         else if (cmd == "test")
         {
