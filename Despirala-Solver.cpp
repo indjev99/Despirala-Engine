@@ -679,7 +679,7 @@ double getInitialScore()
 const int NUM_REASONS = 3;
 
 #define LUCK 0
-#define SKILL 1
+#define MISTAKE 1
 #define NONE 2
 
 const double EPS = 1e-6;
@@ -707,12 +707,19 @@ struct State
     void updateExpScore(double newExpScore, int reason)
     {
         newExpScore += score;
+        double delta = newExpScore - expScore;
         bool print = reason == LUCK || fabs(newExpScore - expScore) > EPS;
-        if (print && reason == LUCK) std::cout << "Luck: ";
-        if (print && reason == SKILL) std::cout << "Mistake: ";
-        if (print && reason == NONE) std::cout << "(Warning) No reason: ";
-        if (print) std::cout << newExpScore - expScore << std::endl;
-        scoreByReason[reason] += newExpScore - expScore;
+        if (print && reason == MISTAKE)
+        {
+            if (reason == LUCK) std::cout << "Luck: ";
+            else if (reason == MISTAKE && fabs(delta) < 1) std::cout << "Inaccuracy: ";
+            else if (reason == MISTAKE && fabs(delta) < 4) std::cout << "Mistake: ";
+            else if (reason == MISTAKE) std::cout << "Blunder: ";
+            else if (reason == NONE) std::cout << "(Warning) No reason: ";
+            else std::cout << "(Error) Invalid reason: ";
+            std::cout << delta << std::endl;
+        }
+        scoreByReason[reason] += delta;
         expScore = newExpScore;
     }
 
@@ -720,7 +727,7 @@ struct State
     {
         std::cout << "Baseline score: " << getInitialScore() << std::endl;
         std::cout << "Score due to luck: " << scoreByReason[LUCK] << std::endl;
-        std::cout << "Score due to mistakes: " << scoreByReason[SKILL] << std::endl;
+        std::cout << "Score due to mistakes: " << scoreByReason[MISTAKE] << std::endl;
         if (fabs(scoreByReason[NONE]) > EPS) std::cout << "(Warning) Score for no reason: " << scoreByReason[NONE] << std::endl;
     }
 };
@@ -802,7 +809,7 @@ void simCollMoves(State& s, int num, int collected, int verbosity, bool evalExp,
         case STOP_COLL:
             if (evalExp)
             {
-                s.updateExpScore(num * collected + getScore(s.free, s.goods), SKILL);
+                s.updateExpScore(num * collected + getScore(s.free, s.goods), MISTAKE);
             }
             break;
         
@@ -811,7 +818,7 @@ void simCollMoves(State& s, int num, int collected, int verbosity, bool evalExp,
             {
                 if (evalExp)
                 {
-                    s.updateExpScore(num * collected + getScoreCollContinue(s.free, s.goods, num, left), SKILL);
+                    s.updateExpScore(num * collected + getScoreCollContinue(s.free, s.goods, num, left), MISTAKE);
                 }
                 cont = true;
                 --s.goods;
@@ -1010,7 +1017,7 @@ int simGame(int verbosity=-1, bool evalExp=false, bool manualRolls=false, bool m
                 --s.goods;
                 if (evalExp)
                 {
-                    s.updateExpScore(getScoreCont(s.free, s.goods), SKILL);
+                    s.updateExpScore(getScoreCont(s.free, s.goods), MISTAKE);
                 }
                 finishedTurn = false;
             }
@@ -1027,7 +1034,7 @@ int simGame(int verbosity=-1, bool evalExp=false, bool manualRolls=false, bool m
                     int collected = diceOccurs[num - 1];
                     if (evalExp)
                     {
-                        s.updateExpScore(num * collected + getScoreColl(s.free, s.goods, num, NUM_DICE - collected), SKILL);
+                        s.updateExpScore(num * collected + getScoreColl(s.free, s.goods, num, NUM_DICE - collected), MISTAKE);
                     }
                     simCollMoves(s, num, collected, verbosity, evalExp, manualRolls, manualMoves);
                 }
@@ -1039,7 +1046,7 @@ int simGame(int verbosity=-1, bool evalExp=false, bool manualRolls=false, bool m
                     remOcc(diceOccurs, newOccurs);
                     if (evalExp)
                     {
-                        s.updateExpScore(getMoveScore(s.free, s.goods, newOccurs, extraDice, t.points), SKILL);
+                        s.updateExpScore(getMoveScore(s.free, s.goods, newOccurs, extraDice, t.points), MISTAKE);
                     }
                     simRegMove(s, newOccurs, extraDice, t.points, verbosity, evalExp, manualRolls);
                 }
@@ -1248,7 +1255,7 @@ void shell()
             std::cout << "Manual moves (0 / 1): ";
             std::cin >> manualMoves;
 
-            std::cout << "Evaluate luck and skill (0 / 1): ";
+            std::cout << "Evaluate luck and mistakes (0 / 1): ";
             std::cin >> evalExp;
 
             std::cout << std::endl;
