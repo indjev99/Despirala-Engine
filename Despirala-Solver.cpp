@@ -704,20 +704,22 @@ struct State
         std::fill(scoreByReason, scoreByReason + NUM_REASONS, 0);
     }
 
-    void updateExpScore(double newExpScore, int reason)
+    void updateExpScore(double newExpScore, int reason, const std::string& bestMvName="")
     {
         newExpScore += score;
         double delta = newExpScore - expScore;
         bool print = reason == LUCK || fabs(newExpScore - expScore) > EPS;
-        if (print && reason == MISTAKE)
+        if (print)
         {
-            if (reason == LUCK) std::cout << "Luck: ";
+            if (reason == LUCK && delta > 0) std::cout << "Good luck: ";
+            else if (reason == LUCK && delta < 0) std::cout << "Bad luck: ";
             else if (reason == MISTAKE && fabs(delta) < 1) std::cout << "Inaccuracy: ";
             else if (reason == MISTAKE && fabs(delta) < 4) std::cout << "Mistake: ";
             else if (reason == MISTAKE) std::cout << "Blunder: ";
             else if (reason == NONE) std::cout << "(Warning) No reason: ";
             else std::cout << "(Error) Invalid reason: ";
             std::cout << delta << std::endl;
+            if (reason == MISTAKE && bestMvName != "") std::cout << "Best move was: " << bestMvName << std::endl;
         }
         scoreByReason[reason] += delta;
         expScore = newExpScore;
@@ -854,6 +856,7 @@ void simCollMoves(State& s, int num, int collected, int verbosity, bool evalExp,
 
         if (manualMoves && s.fail)
         {
+            std::cout << "Invalid move" << std::endl;
             s.fail = false;
             goto moveSelectColl;
         }
@@ -1017,7 +1020,7 @@ int simGame(int verbosity=-1, bool evalExp=false, bool manualRolls=false, bool m
                 --s.goods;
                 if (evalExp)
                 {
-                    s.updateExpScore(getScoreCont(s.free, s.goods), MISTAKE);
+                    s.updateExpScore(getScoreCont(s.free, s.goods), MISTAKE, bestMv.toString());
                 }
                 finishedTurn = false;
             }
@@ -1034,7 +1037,7 @@ int simGame(int verbosity=-1, bool evalExp=false, bool manualRolls=false, bool m
                     int collected = diceOccurs[num - 1];
                     if (evalExp)
                     {
-                        s.updateExpScore(num * collected + getScoreColl(s.free, s.goods, num, NUM_DICE - collected), MISTAKE);
+                        s.updateExpScore(num * collected + getScoreColl(s.free, s.goods, num, NUM_DICE - collected), MISTAKE, bestMv.toString());
                     }
                     simCollMoves(s, num, collected, verbosity, evalExp, manualRolls, manualMoves);
                 }
@@ -1046,7 +1049,7 @@ int simGame(int verbosity=-1, bool evalExp=false, bool manualRolls=false, bool m
                     remOcc(diceOccurs, newOccurs);
                     if (evalExp)
                     {
-                        s.updateExpScore(getMoveScore(s.free, s.goods, newOccurs, extraDice, t.points), MISTAKE);
+                        s.updateExpScore(getMoveScore(s.free, s.goods, newOccurs, extraDice, t.points), MISTAKE, bestMv.toString());
                     }
                     simRegMove(s, newOccurs, extraDice, t.points, verbosity, evalExp, manualRolls);
                 }
@@ -1059,6 +1062,7 @@ int simGame(int verbosity=-1, bool evalExp=false, bool manualRolls=false, bool m
 
         if (manualMoves && s.fail)
         {
+            std::cout << "Invalid move" << std::endl;
             s.fail = false;
             goto moveSelect;
         }
