@@ -1,6 +1,6 @@
-# Despirala-Solver
+# Despirala-Engine
 
-Finds the optimal strategy for the dice game Despirala.
+Finds the optimal strategy for the dice game Despirala. Also can evaluate luck and mistakes made during play.
 
 Rules of the game:
 
