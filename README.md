@@ -1,7 +1,37 @@
 # Despirala-Engine
 
-Finds the optimal strategy for the dice game Despirala. Also can evaluate luck and mistakes made during play.
+Finds the optimal strategy for the dice game Despirala.
+Also can evaluate luck and mistakes made during play.
 
 Rules of the game:
 
-On each turn, you roll 6 dice. After seeing the result, you chose to either reroll the dice or choose some combination. If you choose a combination, it should be one you have not done before. After choosing a combination you have to complete it. To that end, you are alowed to take some of the dice (of your choosing) and reroll only them. If you successfully complete the combination you win the amount of points it is worth and your turn ends. However, you have a limitted number of rolls, called goods, and each roll consumes one good. At the start of each turn you gain 6 goods (though you consume 1 of them immediatelly for the first throw). If you run out of goods before completing the combination, your turn ends and you do not get any points for that combination. A slight exception is the six single number combinations (ones, twos, ...). With them you can choose when you have completed the combination and you get points proportional to the number of correct dice. At the end of the game you get one bouns point per good you have left over.
+1. At the start of each turn you roll all six dice for free and then gain five goods.
+2. After that you choose to either reroll the dice (for the cost of one good) or choose some combination that you have not attempted before.
+3. After picking a combination you have to complete it.
+4. To that end, you repeatedly take some of the dice (of your choosing) and reroll only them (for the cost of one good)
+5. If you successfully complete the combination, you win the amount of points it is worth and your turn ends.
+6. If you run out of goods before completing the chosen combination, your turn ends and you do not get any points for that combination.
+7. The six single number combinations (ones, twos, ...) are an exception: you choose when you are done rolling and get points proportional to the number of correct dice.
+8. At the end of the game you get one bonus point per good you have left over.
+
+List of combinations:
+
+| Name | Contents | Points |
+| ---- | ---- | ---- |
+| Collect ones | N ones | Sum of dice in the combination |
+| Collect twos | N twos | Sum of dice in the combination |
+| Collect threes | N threes | Sum of dice in the combination |
+| Collect fours | N fours | Sum of dice in the combination |
+| Collect fives | N fives | Sum of dice in the combination |
+| Collect sixes | N sixes | Sum of dice in the combination |
+| Three pairs | X, X, Y, Y, Z, Z | Sum of dice in the combination |
+| Two triples | X, X, X, Y, Y, Y | Sum of dice in the combination |
+| Four of a kind | X, X, X, X, ?, ? | 40 |
+| Kamerun | 4, 5, 5, 6, 6, 6 | 45 |
+| Straight | 1, 2, 3, 4, 5, 6 | 50 |
+| Six of a kind | X, X, X, X, X, X | 60 |
+| General | 6, 6, 6, 6, 6, 6 | 70 |
+| Despirala | 1, 1, 1, 1, 1, 6 | 80 |
+
+Note: for combinations such as pairs/triples/X of a kind, you have to pick which pairs/triples/X you are doing.
+E.g. Three pairs -- threes, fives, sixes.
