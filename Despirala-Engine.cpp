@@ -734,7 +734,8 @@ struct State
             else if (reason == R_LUCK && delta < 0) std::cout << "Bad luck: ";
             else if (reason == R_MISTAKE && fabs(delta) < 1) std::cout << "Inaccuracy: ";
             else if (reason == R_MISTAKE && fabs(delta) < 4) std::cout << "Mistake: ";
-            else if (reason == R_MISTAKE && fabs(delta) >= 4) std::cout << "Blunder: ";
+            else if (reason == R_MISTAKE && fabs(delta) < 10) std::cout << "Blunder: ";
+            else if (reason == R_MISTAKE && fabs(delta) >= 10) std::cout << "Massive blunder: ";
             else if (reason == R_NONE) std::cout << "(Warning) No reason: ";
             else std::cout << "(Error) Invalid reason " << reason << ": ";
             std::cout << delta << std::endl;
@@ -866,7 +867,7 @@ void simCollMoves(State& s, int num, int collected, int verbosity, bool printEva
 
         if (manualMoves && s.fail)
         {
-            std::cout << "Invalid move" << std::endl;
+            std::cout << "Invalid move." << std::endl;
             s.fail = false;
             goto moveSelectColl;
         }
