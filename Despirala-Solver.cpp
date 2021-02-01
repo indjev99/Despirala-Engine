@@ -721,13 +721,13 @@ struct State
         bool print = printEvalLM && (reason == LUCK || fabs(newExpScore - expScore) > EPS);
         if (print)
         {
-            if (reason == LUCK && delta > 0) std::cout << "Good luck: ";
+            if (reason == LUCK && delta >= 0) std::cout << "Good luck: ";
             else if (reason == LUCK && delta < 0) std::cout << "Bad luck: ";
             else if (reason == MISTAKE && fabs(delta) < 1) std::cout << "Inaccuracy: ";
             else if (reason == MISTAKE && fabs(delta) < 4) std::cout << "Mistake: ";
-            else if (reason == MISTAKE) std::cout << "Blunder: ";
+            else if (reason == MISTAKE && fabs(delta) >= 4) std::cout << "Blunder: ";
             else if (reason == NONE) std::cout << "(Warning) No reason: ";
-            else std::cout << "(Error) Invalid reason: ";
+            else std::cout << "(Error) Invalid reason " << reason << ": ";
             std::cout << delta << std::endl;
             if (reason == MISTAKE && bestMvName != "") std::cout << "Best move was: " << bestMvName << std::endl;
         }
@@ -969,6 +969,8 @@ int simGame(int verbosity=-1, bool printEvalLM=false, bool manualRolls=false, bo
             std::cout << "Expected final score: " << s.expScore << std::endl;
         }
 
+        s.goods += GOODS_PER_TURN;
+
         diceRoll:
 
         if (!manualRolls) randOcc(diceOccurs);
@@ -979,8 +981,6 @@ int simGame(int verbosity=-1, bool printEvalLM=false, bool manualRolls=false, bo
             std::cout << "Rolled: ";
             printOccurs(diceOccurs);
         }
-
-        s.goods += GOODS_PER_TURN;
 
         Move bestMv = getMove(s.free, s.goods, diceOccurs);
 
@@ -1059,11 +1059,13 @@ int simGame(int verbosity=-1, bool printEvalLM=false, bool manualRolls=false, bo
         return 0;
     }
 
-    int score = s.score + s.goods * POINTS_PER_GOOD;
+    s.score += s.goods * POINTS_PER_GOOD;
+
+    s.updateExpScore(0, NONE, printEvalLM);
 
     if (verbosity >= 0)
     {
-        std::cout << "Final score: " << score << std::endl;
+        std::cout << "Final score: " << s.score << std::endl;
     }
 
     if (printEvalLM)
@@ -1071,7 +1073,7 @@ int simGame(int verbosity=-1, bool printEvalLM=false, bool manualRolls=false, bo
         s.printScoreByReason();
     }
 
-    return score;
+    return s.score;
 }
 
 struct Stats
