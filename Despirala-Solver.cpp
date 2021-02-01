@@ -7,8 +7,8 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <numeric>
+#include <random>
 #include <math.h>
-#include <stdlib.h>
 #include <time.h>
 
 // Game configuration
@@ -326,12 +326,20 @@ void rollToOccurs(int roll, Occurs& occurs)
     }
 }
 
+std::mt19937 generator;
+std::uniform_int_distribution<int> diceDistribution(0, NUM_SIDES - 1);
+
+int randDiceRoll()
+{
+    return diceDistribution(generator);
+}
+
 void randOcc(Occurs& occurs)
 {
     occurs.fill(0);
     for (int i = 0; i < NUM_DICE; ++i)
     {
-        ++occurs[rand() % NUM_SIDES];
+        ++occurs[randDiceRoll()];
     }
 }
 
@@ -341,7 +349,7 @@ bool randRemOcc(int extraDice, Occurs& occurs)
     bool changed = false;
     for (int i = 0; i < numFreeDice; ++i)
     {
-        int side = rand() % NUM_SIDES;
+        int side = randDiceRoll();
         if (occurs[side])
         {
             --occurs[side];
@@ -830,7 +838,7 @@ void simCollMoves(State& s, int num, int collected, int verbosity, bool printEva
                 {
                     for (int i = 0; i < left; ++i)
                     {
-                        if (rand() % NUM_SIDES == 0) ++newHits;
+                        if (randDiceRoll() == 0) ++newHits;
                     }
                     if (verbosity >= 3)
                     {
@@ -1297,7 +1305,7 @@ void shell()
 
 int main()
 {
-    srand(time(0));
+    generator.seed(time(nullptr));
 
     std::cout << "Number of trails per state, higher leads to a better model: ";
     std::cin >> NUM_TRIALS_2;
