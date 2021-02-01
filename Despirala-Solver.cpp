@@ -704,6 +704,16 @@ struct State
         std::fill(scoreByReason, scoreByReason + NUM_REASONS, 0);
     }
 
+    int getTurn()
+    {
+        int turn = 1;
+        for (int i = 0; i < NUM_COMBOS; ++i)
+        {
+            if ((free >> i & 1) == 0) ++turn;
+        }
+        return turn;
+    }
+
     void updateExpScore(double newExpScore, int reason, const std::string& bestMvName="")
     {
         newExpScore += score;
@@ -951,28 +961,26 @@ int simGame(int verbosity=-1, bool evalExp=false, bool manualRolls=false, bool m
 {
     State s;
     Occurs diceOccurs;
-    bool finishedTurn = true;
-    int turn = 0;
 
     while (!s.fail && s.free)
     {
-        if (finishedTurn) ++turn;
-
-        if (verbosity >= 3 && finishedTurn)
+        if (verbosity >= 3)
         {
-            std::cout << "Turn: " << turn << "/" << NUM_COMBOS << std::endl;
+            std::cout << "Turn: " << s.getTurn() << "/" << NUM_COMBOS << std::endl;
         }
 
-        if (verbosity >= 1 && finishedTurn)
+        if (verbosity >= 1)
         {
             std::cout << "Current score: " << s.score << std::endl;
         }
 
-        if (evalExp && finishedTurn)
+        if (evalExp)
         {
             s.updateExpScore(getScore(s.free, s.goods), NONE);
             std::cout << "Expected final score: " << s.expScore << std::endl;
         }
+
+        diceRoll:
 
         if (!manualRolls) randOcc(diceOccurs);
         else chooseOcc(diceOccurs);
@@ -983,7 +991,8 @@ int simGame(int verbosity=-1, bool evalExp=false, bool manualRolls=false, bool m
             printOccurs(diceOccurs);
         }
 
-        if (finishedTurn) s.goods += GOODS_PER_TURN;
+        s.goods += GOODS_PER_TURN;
+
         Move bestMv = getMove(s.free, s.goods, diceOccurs);
 
         if (evalExp)
@@ -1022,7 +1031,7 @@ int simGame(int verbosity=-1, bool evalExp=false, bool manualRolls=false, bool m
                 {
                     s.updateExpScore(getScoreCont(s.free, s.goods), MISTAKE, bestMv.toString());
                 }
-                finishedTurn = false;
+                goto diceRoll;
             }
             else s.fail = true;
             break;
@@ -1053,11 +1062,10 @@ int simGame(int verbosity=-1, bool evalExp=false, bool manualRolls=false, bool m
                     }
                     simRegMove(s, newOccurs, extraDice, t.points, verbosity, evalExp, manualRolls);
                 }
-                finishedTurn = true;
             }
             else s.fail = true;
 
-            if (!s.fail && verbosity >= 1 && finishedTurn) std::cout << std::endl;
+            if (!s.fail && verbosity >= 1) std::cout << std::endl;
         }
 
         if (manualMoves && s.fail)
