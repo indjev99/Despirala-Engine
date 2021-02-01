@@ -34,4 +34,4 @@ List of combinations:
 | Despirala | 1, 1, 1, 1, 1, 6 | 80 |
 
 Note: for combinations such as pairs/triples/X of a kind, you have to pick which pairs/triples/X you are doing.
-E.g. Three pairs -- threes, fives, sixes.
+E.g. Three pairs: threes, fives and sixes.
