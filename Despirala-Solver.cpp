@@ -11,6 +11,9 @@
 #include <math.h>
 #include <time.h>
 
+const double EPS = 1e-6;
+const double INF = 1e6;
+
 // Game configuration
 const int NUM_DICE = 6;
 const int NUM_SIDES = 6;
@@ -469,10 +472,10 @@ bool isNumber(const std::string& s)
     return all_of(s.begin(), s.end(), [](char c){ return std::isdigit(c); });
 }
 
-#define STOP_COLL -1
-#define CONT_COLL -2
-#define REROLL -3
-#define ERROR -100
+#define M_STOP_COLL -1
+#define M_CONT_COLL -2
+#define M_REROLL -3
+#define M_ERROR -100
 
 struct Move
 {
@@ -488,7 +491,7 @@ struct Move
         Move(id, {}, score) {}
     
     Move(const std::string& name, const std::vector<int>& args):
-        Move(ERROR, args, 0)
+        Move(M_ERROR, args, 0)
     {
         std::unordered_set<int> freeArgs;
         for (int i = 0; i < NUM_SIDES; ++i)
@@ -503,9 +506,9 @@ struct Move
             freeArgs.erase(it);
         }
 
-        if (name == "stop collecting" || name == "stop") id = STOP_COLL;
-        else if (name == "continue collecting" || name == "continue") id = CONT_COLL;
-        else if (name == "reroll") id = REROLL;
+        if (name == "stop collecting" || name == "stop") id = M_STOP_COLL;
+        else if (name == "continue collecting" || name == "continue") id = M_CONT_COLL;
+        else if (name == "reroll") id = M_REROLL;
         else
         {
             for (int i = 0; i < NUM_COMBOS; ++i)
@@ -528,16 +531,16 @@ struct Move
         std::string s;
         switch (id)
         {
-        case ERROR:
+        case M_ERROR:
             s = "Error";
             break;
-        case STOP_COLL:
+        case M_STOP_COLL:
             s = "Stop collecting";
             break;
-        case CONT_COLL:
+        case M_CONT_COLL:
             s = "Continue collecting";
             break;
-        case REROLL:
+        case M_REROLL:
             s = "Reroll";
             break;
         default:
@@ -572,10 +575,10 @@ double getScoreCollContinue(int free, int goods, int num, int left)
 
 Move getMoveColl(int free, int goods, int num, int left)
 {
-    Move best = Move(STOP_COLL, getScore(free, goods));
+    Move best = Move(M_STOP_COLL, getScore(free, goods));
     if (goods && left)
     {
-        Move option = Move(CONT_COLL, getScoreCollContinue(free, goods, num, left));
+        Move option = Move(M_CONT_COLL, getScoreCollContinue(free, goods, num, left));
         best = std::max(best, option);
     }
     return best;
@@ -619,7 +622,7 @@ double getMoveScore(int free, int goods, const Occurs& occurs, int extraDice, in
 
 Move getMove(int free, int goods, const Occurs& diceOccurs)
 {
-    Move best = Move(ERROR, 0);
+    Move best = Move(M_ERROR, -INF);
     for (int i = 0; i < NUM_COMBOS; ++i)
     {
         if (!isFree(free, i)) continue;
@@ -646,7 +649,7 @@ Move getMove(int free, int goods, const Occurs& diceOccurs)
     }
     if (goods > 0)
     {
-        Move option = Move(REROLL, getScoreCont(free, goods - 1));
+        Move option = Move(M_REROLL, getScoreCont(free, goods - 1));
         best = std::max(best, option);
     }
     return best;
@@ -686,11 +689,9 @@ double getInitialScore()
 
 const int NUM_REASONS = 3;
 
-#define LUCK 0
-#define MISTAKE 1
-#define NONE 2
-
-const double EPS = 1e-6;
+#define R_LUCK 0
+#define R_MISTAKE 1
+#define R_NONE 2
 
 struct State
 {
@@ -698,7 +699,7 @@ struct State
     int goods;
     int score;
     double expScore;
-    bool fail;
+    int fail;
 
     double scoreByReason[NUM_REASONS];
 
@@ -726,18 +727,18 @@ struct State
     {
         newExpScore += score;
         double delta = newExpScore - expScore;
-        bool print = printEvalLM && (reason == LUCK || fabs(newExpScore - expScore) > EPS);
+        bool print = printEvalLM && (reason == R_LUCK || fabs(newExpScore - expScore) > EPS);
         if (print)
         {
-            if (reason == LUCK && delta >= 0) std::cout << "Good luck: ";
-            else if (reason == LUCK && delta < 0) std::cout << "Bad luck: ";
-            else if (reason == MISTAKE && fabs(delta) < 1) std::cout << "Inaccuracy: ";
-            else if (reason == MISTAKE && fabs(delta) < 4) std::cout << "Mistake: ";
-            else if (reason == MISTAKE && fabs(delta) >= 4) std::cout << "Blunder: ";
-            else if (reason == NONE) std::cout << "(Warning) No reason: ";
+            if (reason == R_LUCK && delta >= 0) std::cout << "Good luck: ";
+            else if (reason == R_LUCK && delta < 0) std::cout << "Bad luck: ";
+            else if (reason == R_MISTAKE && fabs(delta) < 1) std::cout << "Inaccuracy: ";
+            else if (reason == R_MISTAKE && fabs(delta) < 4) std::cout << "Mistake: ";
+            else if (reason == R_MISTAKE && fabs(delta) >= 4) std::cout << "Blunder: ";
+            else if (reason == R_NONE) std::cout << "(Warning) No reason: ";
             else std::cout << "(Error) Invalid reason " << reason << ": ";
             std::cout << delta << std::endl;
-            if (reason == MISTAKE && bestMvName != "") std::cout << "Best move was: " << bestMvName << std::endl;
+            if (reason == R_MISTAKE && bestMvName != "") std::cout << "Best move was: " << bestMvName << std::endl;
         }
         scoreByReason[reason] += delta;
         expScore = newExpScore;
@@ -746,9 +747,9 @@ struct State
     void printScoreByReason()
     {
         std::cout << "Baseline score: " << getInitialScore() << std::endl;
-        std::cout << "Score due to luck: " << scoreByReason[LUCK] << std::endl;
-        std::cout << "Score due to mistakes: " << scoreByReason[MISTAKE] << std::endl;
-        if (fabs(scoreByReason[NONE]) > EPS) std::cout << "(Warning) Score for no reason: " << scoreByReason[NONE] << std::endl;
+        std::cout << "Score due to luck: " << scoreByReason[R_LUCK] << std::endl;
+        std::cout << "Score due to mistakes: " << scoreByReason[R_MISTAKE] << std::endl;
+        if (fabs(scoreByReason[R_NONE]) > EPS) std::cout << "(Warning) Score for no reason: " << scoreByReason[R_NONE] << std::endl;
     }
 };
 
@@ -803,7 +804,7 @@ void simCollMoves(State& s, int num, int collected, int verbosity, bool printEva
         int left = NUM_DICE - collected;
         Move bestMv = getMoveColl(s.free, s.goods, num, left);
 
-        s.updateExpScore(num * collected + bestMv.score, first ? NONE : LUCK, printEvalLM);
+        s.updateExpScore(num * collected + bestMv.score, first ? R_NONE : R_LUCK, printEvalLM);
         first = false;
 
         if (verbosity >= 4)
@@ -823,14 +824,14 @@ void simCollMoves(State& s, int num, int collected, int verbosity, bool printEva
 
         switch (mv.id)
         {
-        case STOP_COLL:
-            s.updateExpScore(num * collected + getScore(s.free, s.goods), MISTAKE, printEvalLM);
+        case M_STOP_COLL:
+            s.updateExpScore(num * collected + getScore(s.free, s.goods), R_MISTAKE, printEvalLM);
             break;
         
-        case CONT_COLL:
+        case M_CONT_COLL:
             if (s.goods && left)
             {
-                s.updateExpScore(num * collected + getScoreCollContinue(s.free, s.goods, num, left), MISTAKE, printEvalLM);
+                s.updateExpScore(num * collected + getScoreCollContinue(s.free, s.goods, num, left), R_MISTAKE, printEvalLM);
                 cont = true;
                 --s.goods;
                 int newHits = 0;
@@ -932,7 +933,7 @@ void simRegMove(State& s, Occurs& occurs, int ed, int reward, int verbosity, boo
         else std::cout << "Didn't complete the combination." << std::endl;
     }
 
-    s.updateExpScore(getScore(s.free, s.goods), instaDone ? NONE : LUCK, printEvalLM);
+    s.updateExpScore(getScore(s.free, s.goods), instaDone ? R_NONE : R_LUCK, printEvalLM);
 
     if (won && verbosity >= 3)
     {
@@ -958,7 +959,7 @@ int simGame(int verbosity=-1, bool printEvalLM=false, bool manualRolls=false, bo
     State s;
     Occurs diceOccurs;
 
-    while (!s.fail && s.free)
+    while (!s.fail && s.getTurn() <= NUM_COMBOS)
     {
         if (verbosity >= 3)
         {
@@ -970,7 +971,7 @@ int simGame(int verbosity=-1, bool printEvalLM=false, bool manualRolls=false, bo
             std::cout << "Current score: " << s.score << std::endl;
         }
         
-        s.updateExpScore(getScore(s.free, s.goods), NONE, printEvalLM);
+        s.updateExpScore(getScore(s.free, s.goods), R_NONE, printEvalLM);
 
         if (printEvalLM)
         {
@@ -992,7 +993,7 @@ int simGame(int verbosity=-1, bool printEvalLM=false, bool manualRolls=false, bo
 
         Move bestMv = getMove(s.free, s.goods, diceOccurs);
 
-        s.updateExpScore(bestMv.score, LUCK, printEvalLM);
+        s.updateExpScore(bestMv.score, R_LUCK, printEvalLM);
 
         if (verbosity >= 1)
         {
@@ -1011,31 +1012,31 @@ int simGame(int verbosity=-1, bool printEvalLM=false, bool manualRolls=false, bo
         int id = mv.id;
         switch (id)
         {
-        case ERROR:
-        case STOP_COLL:
-        case CONT_COLL:
+        case M_ERROR:
+        case M_STOP_COLL:
+        case M_CONT_COLL:
             s.fail = true;
             break;
         
-        case REROLL:
+        case M_REROLL:
             if (s.goods)
             {
                 --s.goods;
-                s.updateExpScore(getScoreCont(s.free, s.goods), MISTAKE, printEvalLM, bestMv.toString());
+                s.updateExpScore(getScoreCont(s.free, s.goods), R_MISTAKE, printEvalLM, bestMv.toString());
                 goto diceRoll;
             }
             else s.fail = true;
             break;
         
         default:
-            if (isFree(s.free, id))
+            if (id >= 0 && id < NUM_COMBOS && isFree(s.free, id))
             {
                 s.free = setUsed(s.free, id);
                 int num = combos[id]->getCollectNumber();
                 if (num)
                 {
                     int collected = diceOccurs[num - 1];
-                    s.updateExpScore(num * collected + getScoreColl(s.free, s.goods, num, NUM_DICE - collected), MISTAKE, printEvalLM, bestMv.toString());
+                    s.updateExpScore(num * collected + getScoreColl(s.free, s.goods, num, NUM_DICE - collected), R_MISTAKE, printEvalLM, bestMv.toString());
                     simCollMoves(s, num, collected, verbosity, printEvalLM, manualRolls, manualMoves);
                 }
                 else
@@ -1044,13 +1045,11 @@ int simGame(int verbosity=-1, bool printEvalLM=false, bool manualRolls=false, bo
                     Occurs newOccurs = t.occurs;
                     int extraDice = calcExtraDice(newOccurs);
                     remOcc(diceOccurs, newOccurs);
-                    s.updateExpScore(getMoveScore(s.free, s.goods, newOccurs, extraDice, t.points), MISTAKE, printEvalLM, bestMv.toString());
+                    s.updateExpScore(getMoveScore(s.free, s.goods, newOccurs, extraDice, t.points), R_MISTAKE, printEvalLM, bestMv.toString());
                     simRegMove(s, newOccurs, extraDice, t.points, verbosity, printEvalLM, manualRolls);
                 }
             }
             else s.fail = true;
-
-            if (!s.fail && verbosity >= 1) std::cout << std::endl;
         }
 
         if (manualMoves && s.fail)
@@ -1059,6 +1058,8 @@ int simGame(int verbosity=-1, bool printEvalLM=false, bool manualRolls=false, bo
             s.fail = false;
             goto moveSelect;
         }
+
+        if (verbosity >= 1) std::cout << std::endl;
     }
 
     if (s.fail)
@@ -1069,7 +1070,7 @@ int simGame(int verbosity=-1, bool printEvalLM=false, bool manualRolls=false, bo
 
     s.score += s.goods * POINTS_PER_GOOD;
 
-    s.updateExpScore(0, NONE, printEvalLM);
+    s.updateExpScore(0, R_NONE, printEvalLM);
 
     if (verbosity >= 0)
     {
