@@ -1,0 +1,193 @@
+Turn: 1/14
+Current score: 0
+Rolled: 1 2 4 4 4 6
+Goods: 5
+Move: Collect 4
+Number of fours collected: 3
+Goods: 5
+Move: Stop collecting
+Number of fours collected: 3
+Won 12 points.
+
+Turn: 2/14
+Current score: 12
+Rolled: 1 3 3 4 6 6
+Goods: 10
+Move: Collect 3
+Number of threes collected: 2
+Goods: 10
+Move: Stop collecting
+Number of threes collected: 2
+Won 6 points.
+
+Turn: 3/14
+Current score: 18
+Rolled: 2 4 4 4 4 6
+Goods: 15
+Move: Four of a kind 4
+Took 0 rolls to complete the combination.
+Won 40 points.
+
+Turn: 4/14
+Current score: 58
+Rolled: 1 1 2 3 5 6
+Goods: 20
+Move: Collect 1
+Number of ones collected: 2
+Goods: 20
+Move: Stop collecting
+Number of ones collected: 2
+Won 2 points.
+
+Turn: 5/14
+Current score: 60
+Rolled: 2 3 4 5 5 5
+Goods: 25
+Move: Collect 5
+Number of fives collected: 3
+Goods: 25
+Move: Stop collecting
+Number of fives collected: 3
+Won 15 points.
+
+Turn: 6/14
+Current score: 75
+Rolled: 1 1 3 5 6 6
+Goods: 30
+Move: Kamerun
+Need: 4 5 6
+Need: 5 6
+Need: 5 6
+Need: 5 6
+Need: 5
+Took 5 rolls to complete the combination.
+Won 45 points.
+
+Turn: 7/14
+Current score: 120
+Rolled: 2 3 5 5 5 5
+Goods: 30
+Move: Six of a kind 5
+Need: 5 5
+Need: 5 5
+Need: 5 5
+Need: 5 5
+Need: 5 5
+Need: 5 5
+Need: 5 5
+Need: 5 5
+Need: 5 5
+Need: 5
+Need: 5
+Need: 5
+Need: 5
+Need: 5
+Took 14 rolls to complete the combination.
+Won 60 points.
+
+Turn: 8/14
+Current score: 180
+Rolled: 1 2 4 4 4 4
+Goods: 21
+Move: Collect 2
+Number of twos collected: 1
+Goods: 21
+Move: Stop collecting
+Number of twos collected: 1
+Won 2 points.
+
+Turn: 9/14
+Current score: 182
+Rolled: 1 1 2 3 3 3
+Goods: 26
+Move: Despirala
+Need: 1 1 1 6
+Need: 1 6
+Need: 1 6
+Need: 1
+Need: 1
+Need: 1
+Need: 1
+Need: 1
+Need: 1
+Need: 1
+Need: 1
+Need: 1
+Need: 1
+Took 13 rolls to complete the combination.
+Won 80 points.
+
+Turn: 10/14
+Current score: 262
+Rolled: 3 5 5 5 5 6
+Goods: 18
+Move: Collect 6
+Number of sixes collected: 1
+Goods: 18
+Move: Continue collecting
+Number of sixes rolled: 2
+Number of sixes collected: 3
+Goods: 17
+Move: Stop collecting
+Number of sixes collected: 3
+Won 18 points.
+
+Turn: 11/14
+Current score: 280
+Rolled: 1 2 3 3 5 6
+Goods: 22
+Move: Straight
+Need: 4
+Need: 4
+Need: 4
+Need: 4
+Need: 4
+Need: 4
+Need: 4
+Took 7 rolls to complete the combination.
+Won 50 points.
+
+Turn: 12/14
+Current score: 330
+Rolled: 1 1 2 2 3 6
+Goods: 20
+Move: General
+Need: 6 6 6 6 6
+Need: 6 6 6 6
+Need: 6 6 6 6
+Need: 6 6 6
+Need: 6
+Took 5 rolls to complete the combination.
+Won 70 points.
+
+Turn: 13/14
+Current score: 400
+Rolled: 1 2 3 5 5 5
+Goods: 20
+Move: Reroll
+Rolled: 2 2 2 5 5 6
+Goods: 19
+Move: Two triples 5 6
+Need: 5 6 6
+Need: 5 6
+Need: 6
+Need: 6
+Need: 6
+Need: 6
+Took 6 rolls to complete the combination.
+Won 33 points.
+
+Turn: 14/14
+Current score: 433
+Rolled: 1 1 2 3 5 6
+Goods: 18
+Move: Three pairs 6 5 4
+Need: 4 4 5 6
+Need: 4 5 6
+Need: 4 5
+Need: 4
+Need: 4
+Took 5 rolls to complete the combination.
+Won 30 points.
+
+Final score: 476
