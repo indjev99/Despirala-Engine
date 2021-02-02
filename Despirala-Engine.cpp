@@ -637,15 +637,19 @@ std::string Move::toString() const
     case M_ERROR:
         s = "Error";
         break;
+
     case M_STOP_COLL:
         s = "Stop collecting";
         break;
+
     case M_CONT_COLL:
         s = "Continue collecting";
         break;
+
     case M_REROLL:
         s = "Reroll";
         break;
+
     default:
         s = combos[id]->getName();
     }
@@ -1117,6 +1121,7 @@ Stats findStats(int n)
     int maxCnt = 0;
     int cnt = -1;
     int curr = -1;
+
     for (int r : res)
     {
         sum += r;
@@ -1127,14 +1132,17 @@ Stats findStats(int n)
             cnt = 0;
             curr = r;
         }
+
         ++cnt;
         if (cnt > maxCnt)
         {
             stats.modes.clear();
             maxCnt = cnt;
         }
+
         if (cnt == maxCnt) stats.modes.push_back(curr);
     }
+
     stats.mean = (double) sum / n;
     stats.stdev = sqrt((double) sqSum / n - stats.mean * stats.mean);
     stats.median = res[n / 2];
@@ -1155,6 +1163,7 @@ void storeModel()
     {
         file << indexToCode[i] << ' ';
     }
+
     for (int i = 0; i <= MAX_EXTRA_DICE; ++i)
     {
         for (int j = 0; j < DIFF_CODES; ++j)
@@ -1165,6 +1174,7 @@ void storeModel()
             }
         }
     }
+
     for (int i = 0; i <= NUM_DICE; ++i)
     {
         for (int j = 0; j <= NUM_DICE; ++j)
@@ -1172,6 +1182,7 @@ void storeModel()
             file << leftDistr[i][j] << ' ';
         }
     }
+
     for (int i = 0; i < NUM_MASKS; ++i)
     {
         for (int j = 0; j <= MAX_GOODS; ++j)
@@ -1198,6 +1209,7 @@ bool loadModel()
         file >> indexToCode[i];
         codeToIndex[indexToCode[i]] = i;
     }
+
     for (int i = 0; i <= MAX_EXTRA_DICE; ++i)
     {
         for (int j = 0; j < DIFF_CODES; ++j)
@@ -1208,6 +1220,7 @@ bool loadModel()
             }
         }
     }
+
     for (int i = 0; i <= NUM_DICE; ++i)
     {
         for (int j = 0; j <= NUM_DICE; ++j)
@@ -1215,6 +1228,7 @@ bool loadModel()
             file >> leftDistr[i][j];
         }
     }
+
     for (int i = 0; i < NUM_MASKS; ++i)
     {
         for (int j = 0; j <= MAX_GOODS; ++j)
