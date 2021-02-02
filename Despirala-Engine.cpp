@@ -446,32 +446,6 @@ void findLeftDistr()
     }
 }
 
-bool isFree(int free, int idx)
-{
-    return (free >> idx) & 1;
-}
-
-int setUsed(int free, int idx)
-{
-    return free - (1 << idx);
-}
-
-bool isFound[NUM_MASKS][MAX_GOODS + 1];
-double score[NUM_MASKS][MAX_GOODS + 1];
-bool isFoundColl[NUM_MASKS][MAX_GOODS + 1][NUM_SIDES][NUM_DICE + 1];
-double collScore[NUM_MASKS][MAX_GOODS + 1][NUM_SIDES][NUM_DICE + 1];
-
-std::string stringToLower(std::string s)
-{
-    std::transform(s.begin(), s.end(), s.begin(), [](char c){ return std::tolower(c); });
-    return s;
-}
-
-bool isNumber(const std::string& s)
-{
-    return all_of(s.begin(), s.end(), [](char c){ return std::isdigit(c); });
-}
-
 #define M_STOP_COLL -1
 #define M_CONT_COLL -2
 #define M_REROLL -3
@@ -487,77 +461,34 @@ struct Move
         id(id),
         args(args),
         score(score) {}
+    
     Move(int id, double score):
         Move(id, {}, score) {}
     
-    Move(const std::string& name, const std::vector<int>& args):
-        Move(M_ERROR, args, 0)
-    {
-        std::unordered_set<int> freeArgs;
-        for (int i = 0; i < NUM_SIDES; ++i)
-        {
-            freeArgs.insert(i + 1);
-        }
-
-        for (int arg : args)
-        {
-            auto it = freeArgs.find(arg);
-            if (it == freeArgs.end()) return;
-            freeArgs.erase(it);
-        }
-
-        if (name == "stop collecting" || name == "stop") id = M_STOP_COLL;
-        else if (name == "continue collecting" || name == "continue") id = M_CONT_COLL;
-        else if (name == "reroll") id = M_REROLL;
-        else
-        {
-            for (int i = 0; i < NUM_COMBOS; ++i)
-            {
-                if (name == stringToLower(combos[i]->getName()) && (int) args.size() == combos[i]->getNumArgs())
-                {
-                    int num = combos[i]->getCollectNumber();
-                    if (!num || (!args.empty() && num == args[0]))
-                    {
-                        id = i;
-                        break;
-                    }
-                }
-            }
-        }
-    }
+    Move(const std::string& name, const std::vector<int>& args);
     
-    std::string toString() const
-    {
-        std::string s;
-        switch (id)
-        {
-        case M_ERROR:
-            s = "Error";
-            break;
-        case M_STOP_COLL:
-            s = "Stop collecting";
-            break;
-        case M_CONT_COLL:
-            s = "Continue collecting";
-            break;
-        case M_REROLL:
-            s = "Reroll";
-            break;
-        default:
-            s = combos[id]->getName();
-        }
-        for (int a : args)
-        {
-            s += " " + std::to_string(a);
-        }
-        return s;
-    }
+    std::string toString() const;
 };
 
 bool operator<(const Move& a, const Move& b)
 {
     return a.score < b.score;
 }
+
+bool isFree(int free, int idx)
+{
+    return (free >> idx) & 1;
+}
+
+int setUsed(int free, int idx)
+{
+    return free - (1 << idx);
+}
+
+bool isFound[NUM_MASKS][MAX_GOODS + 1];
+double score[NUM_MASKS][MAX_GOODS + 1];
+bool isFoundColl[NUM_MASKS][MAX_GOODS + 1][NUM_SIDES][NUM_DICE + 1];
+double collScore[NUM_MASKS][MAX_GOODS + 1][NUM_SIDES][NUM_DICE + 1];
 
 double getScore(int free, int goods);
 double getScoreCont(int free, int goods);
@@ -655,7 +586,7 @@ Move getMove(int free, int goods, const Occurs& diceOccurs)
     return best;
 }
 
-int cnt = 0;
+int statesVisCnt = 0;
 
 double getScoreCont(int free, int goods)
 {
@@ -672,8 +603,8 @@ double getScoreCont(int free, int goods)
             score[free][goods] += mov.score / NUM_TRIALS_2;
         }
     }
-    ++cnt;
-    if (cnt % 10000 == 0) std::cerr << ".";
+    ++statesVisCnt;
+    if (statesVisCnt % 10000 == 0) std::cerr << ".";
     return score[free][goods];
 }
 
@@ -685,6 +616,80 @@ double getScore(int free, int goods)
 double getInitialScore()
 {
     return getScore(NUM_MASKS - 1, 0);
+}
+
+std::string stringToLower(std::string s)
+{
+    std::transform(s.begin(), s.end(), s.begin(), [](char c){ return std::tolower(c); });
+    return s;
+}
+
+bool isNumber(const std::string& s)
+{
+    return all_of(s.begin(), s.end(), [](char c){ return std::isdigit(c); });
+}
+
+std::string Move::toString() const
+{
+    std::string s;
+    switch (id)
+    {
+    case M_ERROR:
+        s = "Error";
+        break;
+    case M_STOP_COLL:
+        s = "Stop collecting";
+        break;
+    case M_CONT_COLL:
+        s = "Continue collecting";
+        break;
+    case M_REROLL:
+        s = "Reroll";
+        break;
+    default:
+        s = combos[id]->getName();
+    }
+    for (int a : args)
+    {
+        s += " " + std::to_string(a);
+    }
+    return s;
+}
+
+Move::Move(const std::string& name, const std::vector<int>& args):
+    Move(M_ERROR, args, 0)
+{
+    std::unordered_set<int> freeArgs;
+    for (int i = 0; i < NUM_SIDES; ++i)
+    {
+        freeArgs.insert(i + 1);
+    }
+
+    for (int arg : args)
+    {
+        auto it = freeArgs.find(arg);
+        if (it == freeArgs.end()) return;
+        freeArgs.erase(it);
+    }
+
+    if (name == "stop collecting" || name == "stop") id = M_STOP_COLL;
+    else if (name == "continue collecting" || name == "continue") id = M_CONT_COLL;
+    else if (name == "reroll") id = M_REROLL;
+    else
+    {
+        for (int i = 0; i < NUM_COMBOS; ++i)
+        {
+            if (name == stringToLower(combos[i]->getName()) && (int) args.size() == combos[i]->getNumArgs())
+            {
+                int num = combos[i]->getCollectNumber();
+                if (!num || (!args.empty() && num == args[0]))
+                {
+                    id = i;
+                    break;
+                }
+            }
+        }
+    }
 }
 
 const int NUM_REASONS = 3;
@@ -1230,15 +1235,17 @@ void fitModel()
     findRollsDistr();
     findLeftDistr();
     getInitialScore();
-    std::cout << "\nConsidered " << cnt << " cases." << std::endl;
+    std::cout << "\nConsidered " << statesVisCnt << " states." << std::endl;
 }
 
 const std::string help = "Possible commands: play / p, example / e, test, expected, credits, help, exit.";
 const std::string credits = "Made by Emil Indzhev.";
+
 void shell()
 {
     std::string cmd;
     std::cout << "\n" << help << std::endl;
+
     while (true)
     {
         std::cout << "\nEnter command: ";
