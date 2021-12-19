@@ -1,14 +1,14 @@
 # Despirala-Engine
 
 Finds the optimal strategy for the dice game Despirala.
-Also can evaluate luck and mistakes made during play.
+Can also evaluate luck and mistakes made during play.
 
 ## Rules of the game:
 
 1. At the start of each turn you roll all six dice for free and then gain five goods.
 2. After that you choose to either reroll the dice (for the cost of one good) or choose some combination that you have not attempted before.
 3. After picking a combination you have to complete it.
-4. To that end, you repeatedly take some of the dice (of your choosing) and reroll only them (for the cost of one good)
+4. To that end, you repeatedly take some of the dice (of your choosing) and reroll only them (for the cost of one good).
 5. If you successfully complete the combination, you win the amount of points it is worth and your turn ends.
 6. If you run out of goods before completing the chosen combination, your turn ends and you do not get any points for that combination.
 7. The six single number combinations (ones, twos, ...) are an exception: you choose when you are done rolling and get points proportional to the number of correct dice.
@@ -26,7 +26,7 @@ Also can evaluate luck and mistakes made during play.
 | Collect sixes | N sixes | Sum of dice in the combination |
 | Three pairs | X, X, Y, Y, Z, Z | Sum of dice in the combination |
 | Two triples | X, X, X, Y, Y, Y | Sum of dice in the combination |
-| Four of a kind | X, X, X, X, ?, ? | 40 |
+| Four of a kind | X, X, X, X | 40 |
 | Kamerun | 4, 5, 5, 6, 6, 6 | 45 |
 | Straight | 1, 2, 3, 4, 5, 6 | 50 |
 | Six of a kind | X, X, X, X, X, X | 60 |
@@ -45,50 +45,50 @@ Note that for a perfect model, "expected score" will be equal to the empirical m
 
 Expected score: 443.802
 
-Mean: 443.674
-Stdev: 61.5048
-5th percentile: 310
-25th percentile: 420
-50th percentile: 468
-75th percentile: 484
-95th percentile: 501
+Mean: 443.674 \
+Stdev: 61.5048 \
+5th percentile: 310 \
+25th percentile: 420 \
+50th percentile: 468 \
+75th percentile: 484 \
+95th percentile: 501 \
 Mode: 478
 
 ### Stats for model_50:
 
 Expected score: 446.146
 
-Mean: 442.376
-Stdev: 62.4811
-5th percentile: 307
-25th percentile: 417
-50th percentile: 467
-75th percentile: 483
-95th percentile: 501
+Mean: 442.376 \
+Stdev: 62.4811 \
+5th percentile: 307 \
+25th percentile: 417 \
+50th percentile: 467 \
+75th percentile: 483 \
+95th percentile: 501 \
 Mode: 477
 
 ### Stats for model_5:
 
 Expected score: 457.178
 
-Mean: 427.978
-Stdev: 70.3454
-5th percentile: 281
-25th percentile: 390
-50th percentile: 458
-75th percentile: 478
-95th percentile: 497
+Mean: 427.978 \
+Stdev: 70.3454 \
+5th percentile: 281 \
+25th percentile: 390 \
+50th percentile: 458 \
+75th percentile: 478 \
+95th percentile: 497 \
 Mode: 474
 
 ### Stats for model_1:
 
 Expected score: 496.013
 
-Mean: 350.294
-Stdev: 93.0744
-5th percentile: 187
-25th percentile: 282
-50th percentile: 356
-75th percentile: 436
-95th percentile: 477
+Mean: 350.294 \
+Stdev: 93.0744 \
+5th percentile: 187 \
+25th percentile: 282 \
+50th percentile: 356 \
+75th percentile: 436 \
+95th percentile: 477 \
 Mode: 460
