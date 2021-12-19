@@ -3,7 +3,7 @@
 Finds the optimal strategy for the dice game Despirala.
 Also can evaluate luck and mistakes made during play.
 
-Rules of the game:
+## Rules of the game:
 
 1. At the start of each turn you roll all six dice for free and then gain five goods.
 2. After that you choose to either reroll the dice (for the cost of one good) or choose some combination that you have not attempted before.
@@ -14,7 +14,7 @@ Rules of the game:
 7. The six single number combinations (ones, twos, ...) are an exception: you choose when you are done rolling and get points proportional to the number of correct dice.
 8. At the end of the game you get one bonus point per good you have left over.
 
-List of combinations:
+## List of combinations:
 
 | Name | Contents | Points |
 | ---- | ---- | ---- |
@@ -35,3 +35,60 @@ List of combinations:
 
 Note: for combinations such as pairs/triples/X of a kind, you have to pick which pairs/triples/X you are doing.
 E.g. Three pairs: threes, fives and sixes.
+
+## Performance stats
+
+All stats here are obtained with a million tests.
+Note that for a perfect model, "expected score" will be equal to the empirical mean.
+
+### Stats for model_1000:
+
+Expected score: 443.802
+
+Mean: 443.674
+Stdev: 61.5048
+5th percentile: 310
+25th percentile: 420
+50th percentile: 468
+75th percentile: 484
+95th percentile: 501
+Mode: 478
+
+### Stats for model_50:
+
+Expected score: 446.146
+
+Mean: 442.376
+Stdev: 62.4811
+5th percentile: 307
+25th percentile: 417
+50th percentile: 467
+75th percentile: 483
+95th percentile: 501
+Mode: 477
+
+### Stats for model_5:
+
+Expected score: 457.178
+
+Mean: 427.978
+Stdev: 70.3454
+5th percentile: 281
+25th percentile: 390
+50th percentile: 458
+75th percentile: 478
+95th percentile: 497
+Mode: 474
+
+### Stats for model_1:
+
+Expected score: 496.013
+
+Mean: 350.294
+Stdev: 93.0744
+5th percentile: 187
+25th percentile: 282
+50th percentile: 356
+75th percentile: 436
+95th percentile: 477
+Mode: 460

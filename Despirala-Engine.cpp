@@ -28,7 +28,7 @@ const int DIFF_CODES = 30; // Sum_{0 <= k <= NUM_DICE} #ways to partition k into
 const int NUM_MASKS = 1 << NUM_COMBOS;
 const int MAX_GOODS = NUM_COMBOS * GOODS_PER_TURN;
 
-const int NUM_TRIALS_1 = 100000; // Trials for rolls distribution
+const int NUM_TRIALS_1 = 1e5; // Trials for rolls distribution
 int NUM_TRIALS_2; // Trials per state
 
 typedef std::array<int, NUM_SIDES> Occurs;
@@ -1099,8 +1099,10 @@ struct Stats
 {
     double mean;
     double stdev;
-    int median;
     int perc5;
+    int perc25;
+    int perc50;
+    int perc75;
     int perc95;
     std::vector<int> modes;
 };
@@ -1145,8 +1147,10 @@ Stats findStats(int n)
 
     stats.mean = (double) sum / n;
     stats.stdev = sqrt((double) sqSum / n - stats.mean * stats.mean);
-    stats.median = res[n / 2];
     stats.perc5 = res[n / 20];
+    stats.perc25 = res[n / 4];
+    stats.perc50 = res[n / 2];
+    stats.perc75 = res[3 * n / 4];
     stats.perc95 = res[19 * n / 20];
 
     return stats;
@@ -1300,10 +1304,12 @@ void shell()
             std::cout << std::endl;
             std::cout << "Mean: " << stats.mean << std::endl;
             std::cout << "Stdev: " << stats.stdev << std::endl;
-            std::cout << "5th  %ile: " << stats.perc5 << std::endl;
-            std::cout << "Median: " << stats.median << std::endl;
-            std::cout << "95th  %ile: " << stats.perc95 << std::endl;
-            std::cout << "Modes:";
+            std::cout << "5th percentile: " << stats.perc5 << std::endl;
+            std::cout << "25th percentile: " << stats.perc25 << std::endl;
+            std::cout << "50th percentile: " << stats.perc50 << std::endl;
+            std::cout << "75th percentile: " << stats.perc75 << std::endl;
+            std::cout << "95th percentile: " << stats.perc95 << std::endl;
+            std::cout << (stats.modes.size() == 1 ? "Mode:" : "Modes:");
             for (int m : stats.modes)
             {
                 std::cout << " " << m;
