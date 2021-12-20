@@ -29,7 +29,7 @@ const int STARTS_ORD_CODES[NUM_DICE + 2] = {0, 1, 7, 28, 84, 210, 462, 924}; // 
 const int NUM_MASKS = 1 << NUM_COMBOS;
 const int MAX_GOODS = NUM_COMBOS * GOODS_PER_TURN;
 
-int NUM_TRIALS_2; // Trials per state
+int NUM_TRIALS; // Trials per state
 
 typedef std::array<int, NUM_SIDES> Occurs;
 
@@ -609,14 +609,25 @@ double getScoreCont(int free, int goods)
     if (isFound[free][goods]) return score[free][goods];
     isFound[free][goods] = true;
     if (free == 0) score[free][goods] = goods * POINTS_PER_GOOD;
-    else
+    else if (NUM_TRIALS > 0)
     {
-        Occurs diceOccurs;
-        for (int t = 0; t < NUM_TRIALS_2; ++t)
+        for (int t = 0; t < NUM_TRIALS; ++t)
         {
+            Occurs diceOccurs;
             randOcc(diceOccurs);
             Move mov = getMove(free, goods, diceOccurs);
-            score[free][goods] += mov.score / NUM_TRIALS_2;
+            score[free][goods] += mov.score / NUM_TRIALS;
+        }
+    }
+    else
+    {
+        for (int i = STARTS_ORD_CODES[NUM_DICE]; i < STARTS_ORD_CODES[NUM_DICE + 1]; ++i)
+        {
+            Occurs diceOccurs;
+            int diceCode = ordIndexToCode[i];
+            codeToOccurs(diceCode, diceOccurs, true);
+            Move mov = getMove(free, goods, diceOccurs);
+            score[free][goods] += mov.score * ordIndexProb[i];
         }
     }
     ++statesVisCnt;
@@ -1172,9 +1183,14 @@ Stats findStats(int n)
     return stats;
 }
 
+std::string modelName()
+{
+    return "model_" + (NUM_TRIALS > 0 ? std::to_string(NUM_TRIALS) : "max");
+}
+
 void storeModel()
 {
-    std::string name = "model_" + std::to_string(NUM_TRIALS_2);
+    std::string name = modelName();
     std::ofstream file(name.c_str());
 
     std::cout << "Storing the model in " << name << "." << std::endl;
@@ -1223,7 +1239,7 @@ void storeModel()
 
 bool loadModel()
 {
-    std::string name = "model_" + std::to_string(NUM_TRIALS_2);
+    std::string name = modelName();
     std::ifstream file(name.c_str());
 
     if (!file) return false;
@@ -1275,14 +1291,14 @@ bool loadModel()
     return true;
 }
 
-void fitModel()
+void computeModel()
 {
-    std::cout << "Fitting the model." << std::endl;
+    std::cout << "Computing the model." << std::endl;
     genCodeIdxMap();
     findRollsDistr();
     findLeftDistr();
     getInitialScore();
-    std::cout << "\nConsidered " << statesVisCnt << " states." << std::endl;
+    std::cout << std::endl << "Considered " << statesVisCnt << " states." << std::endl;
 }
 
 const std::string help = "Possible commands: play / p, example / e, test, expected, credits, help, exit.";
@@ -1291,11 +1307,11 @@ const std::string credits = "Made by Emil Indzhev.";
 void shell()
 {
     std::string cmd;
-    std::cout << "\n" << help << std::endl;
+    std::cout << std::endl << help << std::endl;
 
     while (true)
     {
-        std::cout << "\nEnter command: ";
+        std::cout << std::endl << "Enter command: ";
         std::cin >> cmd;
 
         if (cmd == "play" || cmd == "p")
@@ -1365,12 +1381,12 @@ int main()
 {
     generator.seed(time(nullptr));
 
-    std::cout << "Number of trails per state, higher leads to a better model: ";
-    std::cin >> NUM_TRIALS_2;
+    std::cout << "Number of trails per state or 0 for exact model (which costs " << STARTS_ORD_CODES[NUM_DICE + 1] - STARTS_ORD_CODES[NUM_DICE] << " trials per state): ";
+    std::cin >> NUM_TRIALS;
 
     if (!loadModel())
     {
-        fitModel();
+        computeModel();
         storeModel();
     }
 

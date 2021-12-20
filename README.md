@@ -41,54 +41,67 @@ E.g. Three pairs: threes, fives and sixes.
 All stats here are obtained with a million tests.
 Note that for a perfect model, "expected score" will be equal to the empirical mean.
 
-### Stats for model_1000:
+### Stats for model_max:
 
-Expected score: 443.802
+Expected score: 443.616
 
-Mean: 443.674 \
-Stdev: 61.5048 \
+Mean: 443.662 \
+Stdev: 61.4175 \
 5th percentile: 310 \
 25th percentile: 420 \
 50th percentile: 468 \
 75th percentile: 484 \
 95th percentile: 501 \
-Mode: 478
+Mode: 477
 
-### Stats for model_50:
+### Stats for model_1000:
 
-Expected score: 446.146
+Expected score: 443.694
 
-Mean: 442.376 \
-Stdev: 62.4811 \
-5th percentile: 307 \
-25th percentile: 417 \
-50th percentile: 467 \
+Mean: 443.44 \
+Stdev: 61.5872 \
+5th percentile: 310 \
+25th percentile: 420 \
+50th percentile: 468 \
 75th percentile: 483 \
 95th percentile: 501 \
 Mode: 477
 
+### Stats for model_50:
+
+Expected score: 444.524
+
+Mean: 442.368 \
+Stdev: 62.1897 \
+5th percentile: 308 \
+25th percentile: 418 \
+50th percentile: 467 \
+75th percentile: 483 \
+95th percentile: 500 \
+Mode: 480
+
 ### Stats for model_5:
 
-Expected score: 457.178
+Expected score: 457.534
 
-Mean: 427.978 \
-Stdev: 70.3454 \
-5th percentile: 281 \
-25th percentile: 390 \
-50th percentile: 458 \
-75th percentile: 478 \
-95th percentile: 497 \
+Mean: 425.704 \
+Stdev: 71.0996 \
+5th percentile: 278 \
+25th percentile: 387 \
+50th percentile: 456 \
+75th percentile: 476 \
+95th percentile: 496 \
 Mode: 474
 
 ### Stats for model_1:
 
-Expected score: 496.013
+Expected score: 497.976
 
-Mean: 350.294 \
-Stdev: 93.0744 \
-5th percentile: 187 \
-25th percentile: 282 \
-50th percentile: 356 \
-75th percentile: 436 \
-95th percentile: 477 \
-Mode: 460
+Mean: 333.445 \
+Stdev: 92.1199 \
+5th percentile: 176 \
+25th percentile: 267 \
+50th percentile: 334 \
+75th percentile: 401 \
+95th percentile: 478 \
+Mode: 380
