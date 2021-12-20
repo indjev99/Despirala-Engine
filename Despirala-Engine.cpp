@@ -22,7 +22,6 @@ const int GOODS_PER_TURN = 5;
 const int POINTS_PER_GOOD = 1;
 
 // Depends on game configuration
-const int MAX_ROLL = 46656; // NUM_DICE ^ NUM_SIDES
 const int MAX_CODE = 1 << (NUM_SIDES + NUM_DICE);
 const int VALID_CODES = 30; // Sum_{0 <= k <= NUM_DICE} #ways to partition k into at most NUM_SIDES partitions
 const int VALID_ORD_CODES = 924; // Sum_{0 <= k <= NUM_DICE} #ways to partition k into NUM_SIDES ordered partitions
@@ -30,7 +29,6 @@ const int STARTS_ORD_CODES[NUM_DICE + 2] = {0, 1, 7, 28, 84, 210, 462, 924}; // 
 const int NUM_MASKS = 1 << NUM_COMBOS;
 const int MAX_GOODS = NUM_COMBOS * GOODS_PER_TURN;
 
-const int NUM_TRIALS_1 = 1e5; // Trials for rolls distribution
 int NUM_TRIALS_2; // Trials per state
 
 typedef std::array<int, NUM_SIDES> Occurs;
@@ -368,6 +366,23 @@ int diceInIndex[VALID_CODES];
 
 std::unordered_map<int, int> ordCodeToIndex;
 int ordIndexToCode[VALID_ORD_CODES];
+double ordIndexProb[VALID_ORD_CODES];
+
+int fact(int n)
+{
+    return n ? n * fact(n - 1) : 1;
+}
+
+double occursProb(const Occurs& occurs)
+{
+    int numDice = diceInOcc(occurs);
+    double prob = fact(numDice);
+    for (int cnt : occurs)
+    {
+        prob /= fact(cnt);
+    }
+    return prob / pow(NUM_SIDES, numDice);
+}
 
 void genCodeIdxMap()
 {
@@ -386,7 +401,8 @@ void genCodeIdxMap()
         if (codeToOccurs(i, occurs, true))
         {
             ordCodeToIndex[i] = ordLastIdx;
-            ordIndexToCode[ordLastIdx++] = i;
+            ordIndexToCode[ordLastIdx] = i;
+            ordIndexProb[ordLastIdx++] = occursProb(occurs);
         }
     }
 }
@@ -396,24 +412,31 @@ double rollsDistr[NUM_DICE + 1][VALID_CODES][MAX_GOODS + 1];
 void findRollsDistrSingle(int ed, int idx)
 {
     Occurs occurs;
-    Occurs occurs2;
+    double changeProb = 0;
     int code = indexToCode[idx];
+    int numDice = ed + diceInIndex[idx];
     codeToOccurs(code, occurs, false);
-    for (int t = 0; t < NUM_TRIALS_1; ++t)
+    for (int i = STARTS_ORD_CODES[numDice]; i < STARTS_ORD_CODES[numDice + 1]; ++i)
     {
-        occurs2 = occurs;
-        bool changed = false;
-        int rolls = 0;
-        while (!changed)
-        {
-            changed = randRemOcc(ed, occurs2);
-            ++rolls;
-        }
-        int newCode = occursToCode(occurs2, false);
+        Occurs diceOccurs;
+        int diceCode = ordIndexToCode[i];
+        codeToOccurs(diceCode, diceOccurs, true);
+        Occurs newOccurs = occurs;
+        if (!remOcc(newOccurs, diceOccurs)) continue;
+        changeProb += ordIndexProb[i];
+        int newCode = occursToCode(newOccurs, false);
         int newIdx = codeToIndex[newCode];
-        for (int i = 0; i <= MAX_GOODS - rolls; ++i)
+        for (int j = 0; j <= MAX_GOODS; ++j)
         {
-            rollsDistr[ed][idx][i + rolls] += rollsDistr[ed][newIdx][i] / NUM_TRIALS_1;
+            rollsDistr[ed][idx][j] += rollsDistr[ed][newIdx][j] * ordIndexProb[i];
+        }
+    }
+    for (int i = MAX_GOODS; i >= 0 ; --i)
+    {
+        rollsDistr[ed][idx][i] = 0;
+        for (int j = i - 1; j >= 0 ; --j)
+        {
+            rollsDistr[ed][idx][i] += rollsDistr[ed][idx][j] * pow(1 - changeProb, i - j - 1);
         }
     }
 }
@@ -432,11 +455,6 @@ void findRollsDistr()
 }
 
 double leftDistr[NUM_DICE + 1][NUM_DICE + 1];
-
-int fact(int n)
-{
-    return n ? n * fact(n - 1) : 1;
-}
 
 void findLeftDistr()
 {
@@ -1168,7 +1186,7 @@ void storeModel()
 
     for (int i = 0; i < VALID_ORD_CODES; ++i)
     {
-        file << ordIndexToCode[i] << ' ';
+        file << ordIndexToCode[i] << ' ' << ordIndexProb[i] << ' ';
     }
 
     for (int i = 0; i <= NUM_DICE; ++i)
@@ -1220,7 +1238,7 @@ bool loadModel()
 
     for (int i = 0; i < VALID_ORD_CODES; ++i)
     {
-        file >> ordIndexToCode[i];
+        file >> ordIndexToCode[i] >> ordIndexProb[i];
         ordCodeToIndex[ordIndexToCode[i]] = i;
     }
 
