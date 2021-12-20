@@ -759,7 +759,7 @@ struct State
         return turn;
     }
 
-    void updateExpScore(double newExpScore, int reason, bool printEvalLM, const std::string& bestMvName="")
+    void updateExpScore(double newExpScore, int reason, bool printEvalLM, const std::string& bestMvName = "")
     {
         newExpScore += score;
         double delta = newExpScore - expScore;
@@ -991,7 +991,7 @@ void chooseOcc(Occurs& occurs)
     }
 }
 
-int simGame(int verbosity=-1, bool printEvalLM=false, bool manualRolls=false, bool manualMoves=false)
+int simGame(int verbosity = -1, bool printEvalLM = false, bool manualRolls = false, bool manualMoves = false)
 {
     State s;
     Occurs diceOccurs;
