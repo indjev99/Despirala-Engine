@@ -24,7 +24,9 @@ const int POINTS_PER_GOOD = 1;
 // Depends on game configuration
 const int MAX_ROLL = 46656; // NUM_DICE ^ NUM_SIDES
 const int MAX_CODE = 1 << (NUM_SIDES + NUM_DICE);
-const int DIFF_CODES = 30; // Sum_{0 <= k <= NUM_DICE} #ways to partition k into at most NUM_SIDES partitions
+const int VALID_CODES = 30; // Sum_{0 <= k <= NUM_DICE} #ways to partition k into at most NUM_SIDES partitions
+const int VALID_ORD_CODES = 924; // Sum_{0 <= k <= NUM_DICE} #ways to partition k into NUM_SIDES ordered partitions
+const int STARTS_ORD_CODES[NUM_DICE + 2] = {0, 1, 7, 28, 84, 210, 462, 924}; // 0 <= t <= NUM_DICE + 1: Sum_{0 <= k <= t} #ways to partition k into NUM_SIDES ordered partitions
 const int NUM_MASKS = 1 << NUM_COMBOS;
 const int MAX_GOODS = NUM_COMBOS * GOODS_PER_TURN;
 
@@ -76,6 +78,7 @@ struct Combo
     }
 
 protected:
+
     const std::string name;
     const int points;
 
@@ -99,15 +102,14 @@ struct CollectCombo : Combo
     {
         return number;
     }
-    
 
 protected:
+
     int number;
 };
 
 struct FixedCombo : Combo
 {
-public:
     FixedCombo(const std::string& name, int points, const Occurs& occurs):
         Combo(name, points),
         occurs(occurs) {}
@@ -121,12 +123,12 @@ public:
     }
 
 protected:
+
     const Occurs occurs;
 };
 
 struct PermCombo : Combo
 {
-public:
     PermCombo(const std::string& name, int points, const Occurs& occurs):
         Combo(name, points),
         templateOccurs(sortedOccurs(occurs)) {}
@@ -161,6 +163,7 @@ public:
     }
 
 protected:
+
     const Occurs templateOccurs;
     std::unordered_map<int, std::vector<Target>> cache;
 
@@ -216,6 +219,7 @@ struct SPermCombo : PermCombo
     }
 
 protected:
+
     std::vector<Target> rawGetTargets(const Occurs& diceOccurs) const
     {
         std::array<std::pair<int, int>, NUM_SIDES> diceOccursPairs;
@@ -253,27 +257,25 @@ protected:
 };
 
 // Game configuration
-Combo* combos[]={new CollectCombo("Collect", 1),
-                 new CollectCombo("Collect", 2),
-                 new CollectCombo("Collect", 3),
-                 new CollectCombo("Collect", 4),
-                 new CollectCombo("Collect", 5),
-                 new CollectCombo("Collect", 6),
-                 new   SPermCombo("Three pairs",        {2, 2, 2, 0, 0, 0}),
-                 new   SPermCombo("Two triples",        {3, 3, 0, 0, 0, 0}),
-                 new    PermCombo("Four of a kind", 40, {4, 0, 0, 0, 0, 0}),
-                 new   FixedCombo("Kamerun",        45, {0, 0, 0, 1, 2, 3}),
-                 new   FixedCombo("Straight",       50, {1, 1, 1, 1, 1, 1}),
-                 new    PermCombo("Six of a kind",  60, {6, 0, 0, 0, 0, 0}),
-                 new   FixedCombo("General",        70, {0, 0, 0, 0, 0, 6}),
-                 new   FixedCombo("Despirala",      80, {5, 0, 0, 0, 0, 1})};
+Combo* const combos[] = {new CollectCombo("Collect", 1),
+                         new CollectCombo("Collect", 2),
+                         new CollectCombo("Collect", 3),
+                         new CollectCombo("Collect", 4),
+                         new CollectCombo("Collect", 5),
+                         new CollectCombo("Collect", 6),
+                         new   SPermCombo("Three pairs",        {2, 2, 2, 0, 0, 0}),
+                         new   SPermCombo("Two triples",        {3, 3, 0, 0, 0, 0}),
+                         new    PermCombo("Four of a kind", 40, {4, 0, 0, 0, 0, 0}),
+                         new   FixedCombo("Kamerun",        45, {0, 0, 0, 1, 2, 3}),
+                         new   FixedCombo("Straight",       50, {1, 1, 1, 1, 1, 1}),
+                         new    PermCombo("Six of a kind",  60, {6, 0, 0, 0, 0, 0}),
+                         new   FixedCombo("General",        70, {0, 0, 0, 0, 0, 6}),
+                         new   FixedCombo("Despirala",      80, {5, 0, 0, 0, 0, 1})};
 
-// Depends on game configuration
-const int MIN_COMB_DICE = 4;
-
-int occursToCode(Occurs occurs)
+int occursToCode(Occurs occurs, bool ordered)
 {
-    std::sort(occurs.begin(), occurs.end(), std::greater<int>());
+    if (!ordered) std::sort(occurs.begin(), occurs.end(), std::greater<int>());
+
     int code = 1;
     int curr = 0;
     while (curr < NUM_SIDES)
@@ -290,7 +292,7 @@ int occursToCode(Occurs occurs)
     return code;
 }
 
-bool codeToOccurs(int code, Occurs& occurs)
+bool codeToOccurs(int code, Occurs& occurs, bool ordered)
 {
     occurs.fill(0);
     int n = NUM_SIDES + NUM_DICE;
@@ -314,19 +316,9 @@ bool codeToOccurs(int code, Occurs& occurs)
     if (curr != NUM_SIDES - 1) return false;
     for (int i = 1; i < NUM_SIDES; ++i)
     {
-        if (occurs[i - 1] < occurs[i]) return false;
+        if (!ordered && occurs[i - 1] < occurs[i]) return false;
     }
     return true;
-}
-
-void rollToOccurs(int roll, Occurs& occurs)
-{
-    occurs.fill(0);
-    while (roll)
-    {
-        ++occurs[roll % NUM_SIDES];
-        roll /= NUM_SIDES;
-    }
 }
 
 std::mt19937 generator;
@@ -337,66 +329,76 @@ int randDiceRoll()
     return diceDistribution(generator);
 }
 
-void randOcc(Occurs& occurs)
+void randOcc(Occurs& occurs, int numDice = NUM_DICE)
 {
     occurs.fill(0);
-    for (int i = 0; i < NUM_DICE; ++i)
+    for (int i = 0; i < numDice; ++i)
     {
         ++occurs[randDiceRoll()];
     }
 }
 
-bool randRemOcc(int extraDice, Occurs& occurs)
+bool remOcc(Occurs& occurs, const Occurs& diceOccurs)
 {
-    int numFreeDice = std::accumulate(occurs.begin(), occurs.end(), extraDice);
     bool changed = false;
-    for (int i = 0; i < numFreeDice; ++i)
+    for (int i = 0; i < NUM_SIDES; ++i)
     {
-        int side = randDiceRoll();
-        if (occurs[side])
-        {
-            --occurs[side];
-            changed = true;
-        }
+        if (occurs[i] > 0 && diceOccurs[i] > 0) changed = true;
+        occurs[i] = std::max(occurs[i] - diceOccurs[i], 0);
     }
     return changed;
 }
 
-void remOcc(const Occurs& diceOccurs, Occurs& occurs)
+int diceInOcc(const Occurs& occurs)
 {
-    for (int i = 0; i < NUM_SIDES; ++i)
-    {
-        occurs[i] = std::max(occurs[i] - diceOccurs[i], 0);
-    }
+    return std::accumulate(occurs.begin(), occurs.end(), 0);
+}
+
+bool randRemOcc(int extraDice, Occurs& occurs)
+{
+    Occurs diceOccurs;
+    int numDice = extraDice + diceInOcc(occurs);
+    randOcc(diceOccurs, numDice);
+    return remOcc(occurs, diceOccurs);
 }
 
 std::unordered_map<int, int> codeToIndex;
-int indexToCode[DIFF_CODES];
+int indexToCode[VALID_CODES];
+int diceInIndex[VALID_CODES];
 
-void generateLefts()
+std::unordered_map<int, int> ordCodeToIndex;
+int ordIndexToCode[VALID_ORD_CODES];
+
+void genCodeIdxMap()
 {
     Occurs occurs;
     int lastIdx = 0;
+    int ordLastIdx = 0;
     for (int i = 0; i <= MAX_CODE; ++i)
     {
-        if (codeToOccurs(i, occurs))
+        if (codeToOccurs(i, occurs, false))
         {
-            indexToCode[lastIdx] = i;
             codeToIndex[i] = lastIdx;
-            ++lastIdx;
+            indexToCode[lastIdx] = i;
+            diceInIndex[lastIdx++] = diceInOcc(occurs);
+        }
+
+        if (codeToOccurs(i, occurs, true))
+        {
+            ordCodeToIndex[i] = ordLastIdx;
+            ordIndexToCode[ordLastIdx++] = i;
         }
     }
 }
 
-const int MAX_EXTRA_DICE = NUM_DICE - MIN_COMB_DICE;
-double rollsDistr[MAX_EXTRA_DICE + 1][DIFF_CODES][MAX_GOODS + 1];
+double rollsDistr[NUM_DICE + 1][VALID_CODES][MAX_GOODS + 1];
 
 void findRollsDistrSingle(int ed, int idx)
 {
     Occurs occurs;
     Occurs occurs2;
     int code = indexToCode[idx];
-    codeToOccurs(code, occurs);
+    codeToOccurs(code, occurs, false);
     for (int t = 0; t < NUM_TRIALS_1; ++t)
     {
         occurs2 = occurs;
@@ -407,7 +409,7 @@ void findRollsDistrSingle(int ed, int idx)
             changed = randRemOcc(ed, occurs2);
             ++rolls;
         }
-        int newCode = occursToCode(occurs2);
+        int newCode = occursToCode(occurs2, false);
         int newIdx = codeToIndex[newCode];
         for (int i = 0; i <= MAX_GOODS - rolls; ++i)
         {
@@ -418,11 +420,12 @@ void findRollsDistrSingle(int ed, int idx)
 
 void findRollsDistr()
 {
-    for (int ed = 0; ed <= MAX_EXTRA_DICE; ++ed)
+    for (int ed = 0; ed <= NUM_DICE; ++ed)
     {
         rollsDistr[ed][0][0] = 1;
-        for (int i = 1; i < DIFF_CODES; ++i)
+        for (int i = 1; i < VALID_CODES; ++i)
         {
+            if (ed + diceInIndex[i] > NUM_DICE) continue; 
             findRollsDistrSingle(ed, i);
         }
     }
@@ -525,15 +528,10 @@ double getScoreColl(int free, int goods, int num, int left)
     return collScore[free][goods][num][left];
 }
 
-int calcExtraDice(const Occurs& occurs)
-{
-    return NUM_DICE - std::accumulate(occurs.begin(), occurs.end(), 0);
-}
-
 double getMoveScore(int free, int goods, const Occurs& occurs, int extraDice, int reward)
 {
     double score = 0;
-    int code = occursToCode(occurs);
+    int code = occursToCode(occurs, false);
     int idx = codeToIndex[code];
 
     double succP = 0;
@@ -571,8 +569,8 @@ Move getMove(int free, int goods, const Occurs& diceOccurs)
             for (const Target& t : ts)
             {
                 Occurs newOccurs = t.occurs;
-                int extraDice = calcExtraDice(newOccurs);
-                remOcc(diceOccurs, newOccurs);
+                int extraDice = NUM_DICE - diceInOcc(newOccurs);
+                remOcc(newOccurs, diceOccurs);
                 Move option = Move(i, t.args, getMoveScore(newFree, goods, newOccurs, extraDice, t.points));
                 best = std::max(best, option);
             }
@@ -1053,8 +1051,8 @@ int simGame(int verbosity=-1, bool printEvalLM=false, bool manualRolls=false, bo
                 {
                     Target t = combos[id]->getTargetByArgs(mv.args);
                     Occurs newOccurs = t.occurs;
-                    int extraDice = calcExtraDice(newOccurs);
-                    remOcc(diceOccurs, newOccurs);
+                    int extraDice = NUM_DICE - diceInOcc(newOccurs);
+                    remOcc(newOccurs, diceOccurs);
                     s.updateExpScore(getMoveScore(s.free, s.goods, newOccurs, extraDice, t.points), R_MISTAKE, printEvalLM, bestMv.toString());
                     simRegMove(s, newOccurs, extraDice, t.points, verbosity, printEvalLM, manualRolls);
                 }
@@ -1163,15 +1161,21 @@ void storeModel()
 
     std::cout << "Storing the model in " << name << "." << std::endl;
 
-    for (int i = 0; i < DIFF_CODES; ++i)
+    for (int i = 0; i < VALID_CODES; ++i)
     {
-        file << indexToCode[i] << ' ';
+        file << indexToCode[i] << ' ' << diceInIndex[i] << ' ';
     }
 
-    for (int i = 0; i <= MAX_EXTRA_DICE; ++i)
+    for (int i = 0; i < VALID_ORD_CODES; ++i)
     {
-        for (int j = 0; j < DIFF_CODES; ++j)
+        file << ordIndexToCode[i] << ' ';
+    }
+
+    for (int i = 0; i <= NUM_DICE; ++i)
+    {
+        for (int j = 0; j < VALID_CODES; ++j)
         {
+            if (i + diceInIndex[j] > NUM_DICE) continue;
             for (int k = 0; k <= MAX_GOODS; ++k)
             {
                 file << rollsDistr[i][j][k] << ' ';
@@ -1208,16 +1212,23 @@ bool loadModel()
 
     std::cout << "Loading the model from " << name << "." << std::endl;
 
-    for (int i = 0; i < DIFF_CODES; ++i)
+    for (int i = 0; i < VALID_CODES; ++i)
     {
-        file >> indexToCode[i];
+        file >> indexToCode[i] >> diceInIndex[i];
         codeToIndex[indexToCode[i]] = i;
     }
 
-    for (int i = 0; i <= MAX_EXTRA_DICE; ++i)
+    for (int i = 0; i < VALID_ORD_CODES; ++i)
     {
-        for (int j = 0; j < DIFF_CODES; ++j)
+        file >> ordIndexToCode[i];
+        ordCodeToIndex[ordIndexToCode[i]] = i;
+    }
+
+    for (int i = 0; i <= NUM_DICE; ++i)
+    {
+        for (int j = 0; j < VALID_CODES; ++j)
         {
+            if (i + diceInIndex[j] > NUM_DICE) continue;
             for (int k = 0; k <= MAX_GOODS; ++k)
             {
                 file >> rollsDistr[i][j][k];
@@ -1249,7 +1260,7 @@ bool loadModel()
 void fitModel()
 {
     std::cout << "Fitting the model." << std::endl;
-    generateLefts();
+    genCodeIdxMap();
     findRollsDistr();
     findLeftDistr();
     getInitialScore();
