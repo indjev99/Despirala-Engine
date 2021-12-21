@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <sstream>
 #include <algorithm>
@@ -11,7 +12,10 @@
 #include <math.h>
 #include <time.h>
 
-const double EPS = 1e-6;
+const double IO_EPS = 5e-4;
+const int IO_PRECISION = 3;
+const int FILE_PRECISION = 9;
+
 const double INF = 1e6;
 
 // Game configuration
@@ -763,18 +767,19 @@ struct State
     {
         newExpScore += score;
         double delta = newExpScore - expScore;
-        bool print = printEvalLM && (reason == R_LUCK || fabs(newExpScore - expScore) > EPS);
+        bool print = printEvalLM && (reason == R_LUCK || fabs(newExpScore - expScore) > IO_EPS);
         if (print)
         {
-            if (reason == R_LUCK && delta >= 0) std::cout << "Good luck: ";
-            else if (reason == R_LUCK && delta < 0) std::cout << "Bad luck: ";
-            else if (reason == R_MISTAKE && fabs(delta) < 1) std::cout << "Inaccuracy: ";
-            else if (reason == R_MISTAKE && fabs(delta) < 4) std::cout << "Mistake: ";
-            else if (reason == R_MISTAKE && fabs(delta) < 10) std::cout << "Blunder: ";
-            else if (reason == R_MISTAKE && fabs(delta) >= 10) std::cout << "Massive blunder: ";
+            if (reason == R_LUCK && delta > IO_EPS) std::cout << "Good luck: ";
+            else if (reason == R_LUCK && delta < -IO_EPS) std::cout << "Bad luck: ";
+            else if (reason == R_LUCK && fabs(delta) <= IO_EPS) std::cout << "Neutral luck: ";
+            else if (reason == R_MISTAKE && -delta < 1) std::cout << "Inaccuracy: ";
+            else if (reason == R_MISTAKE && -delta < 4) std::cout << "Mistake: ";
+            else if (reason == R_MISTAKE && -delta < 10) std::cout << "Blunder: ";
+            else if (reason == R_MISTAKE && -delta >= 10) std::cout << "Massive blunder: ";
             else if (reason == R_NONE) std::cout << "(Warning) No reason: ";
             else std::cout << "(Error) Invalid reason " << reason << ": ";
-            std::cout << delta << std::endl;
+            std::cout << std::setprecision(IO_PRECISION) << delta << std::endl;
             if (reason == R_MISTAKE && bestMvName != "") std::cout << "Best move was: " << bestMvName << std::endl;
         }
         scoreByReason[reason] += delta;
@@ -783,10 +788,10 @@ struct State
 
     void printScoreByReason()
     {
-        std::cout << "Baseline score: " << getInitialScore() << std::endl;
-        std::cout << "Score due to luck: " << scoreByReason[R_LUCK] << std::endl;
-        std::cout << "Score due to mistakes: " << scoreByReason[R_MISTAKE] << std::endl;
-        if (fabs(scoreByReason[R_NONE]) > EPS) std::cout << "(Warning) Score for no reason: " << scoreByReason[R_NONE] << std::endl;
+        std::cout << "Baseline score: " << std::setprecision(IO_PRECISION) << getInitialScore() << std::endl;
+        std::cout << "Score due to luck: " << std::setprecision(IO_PRECISION) << scoreByReason[R_LUCK] << std::endl;
+        std::cout << "Score due to mistakes: " << std::setprecision(IO_PRECISION) << scoreByReason[R_MISTAKE] << std::endl;
+        if (fabs(scoreByReason[R_NONE]) > IO_EPS) std::cout << "(Warning) Score for no reason: " << std::setprecision(IO_PRECISION) << scoreByReason[R_NONE] << std::endl;
     }
 };
 
@@ -1012,7 +1017,7 @@ int simGame(int verbosity = -1, bool printEvalLM = false, bool manualRolls = fal
 
         if (printEvalLM)
         {
-            std::cout << "Expected final score: " << s.expScore << std::endl;
+            std::cout << "Expected final score: " << std::setprecision(IO_PRECISION) << s.expScore << std::endl;
         }
 
         s.goods += GOODS_PER_TURN;
@@ -1202,7 +1207,7 @@ void storeModel()
 
     for (int i = 0; i < VALID_ORD_CODES; ++i)
     {
-        file << ordIndexToCode[i] << ' ' << ordIndexProb[i] << ' ';
+        file << ordIndexToCode[i] << ' ' << std::setprecision(FILE_PRECISION) << ordIndexProb[i] << ' ';
     }
 
     for (int i = 0; i <= NUM_DICE; ++i)
@@ -1212,7 +1217,7 @@ void storeModel()
             if (i + diceInIndex[j] > NUM_DICE) continue;
             for (int k = 0; k <= MAX_GOODS; ++k)
             {
-                file << rollsDistr[i][j][k] << ' ';
+                file << std::setprecision(FILE_PRECISION) << rollsDistr[i][j][k] << ' ';
             }
         }
     }
@@ -1221,7 +1226,7 @@ void storeModel()
     {
         for (int j = 0; j <= NUM_DICE; ++j)
         {
-            file << leftDistr[i][j] << ' ';
+            file << std::setprecision(FILE_PRECISION) << leftDistr[i][j] << ' ';
         }
     }
 
@@ -1230,7 +1235,7 @@ void storeModel()
         for (int j = 0; j <= MAX_GOODS; ++j)
         {
             file << isFound[i][j] << ' ';
-            if (isFound[i][j]) file << score[i][j] << ' ';
+            if (isFound[i][j]) file << std::setprecision(FILE_PRECISION) << score[i][j] << ' ';
         }
     }
 
@@ -1347,8 +1352,8 @@ void shell()
             std::cin >> numTests;
             Stats stats = findStats(numTests);
             std::cout << std::endl;
-            std::cout << "Mean: " << stats.mean << std::endl;
-            std::cout << "Stdev: " << stats.stdev << std::endl;
+            std::cout << "Mean: " << std::setprecision(IO_PRECISION) << stats.mean << std::endl;
+            std::cout << "Stdev: " << std::setprecision(IO_PRECISION) << stats.stdev << std::endl;
             std::cout << "5th percentile: " << stats.perc5 << std::endl;
             std::cout << "25th percentile: " << stats.perc25 << std::endl;
             std::cout << "50th percentile: " << stats.perc50 << std::endl;
