@@ -1198,7 +1198,7 @@ void storeModel()
     std::string name = modelName();
     std::ofstream file(name.c_str());
 
-    std::cout << "Storing the model in " << name << "." << std::endl;
+    std::cout << "Storing model in " << name << "." << std::endl;
 
     for (int i = 0; i < VALID_CODES; ++i)
     {
@@ -1239,7 +1239,7 @@ void storeModel()
         }
     }
 
-    std::cout << "Stored the model." << std::endl;
+    std::cout << "Stored model." << std::endl;
 }
 
 bool loadModel()
@@ -1249,7 +1249,7 @@ bool loadModel()
 
     if (!file) return false;
 
-    std::cout << "Loading the model from " << name << "." << std::endl;
+    std::cout << "Loading model from " << name << "." << std::endl;
 
     for (int i = 0; i < VALID_CODES; ++i)
     {
@@ -1292,13 +1292,13 @@ bool loadModel()
         }
     }
 
-    std::cout << "Loaded the model." << std::endl;
+    std::cout << "Loaded model." << std::endl;
     return true;
 }
 
 void computeModel()
 {
-    std::cout << "Computing the model." << std::endl;
+    std::cout << "Computing model." << std::endl;
     genCodeIdxMap();
     findRollsDistr();
     findLeftDistr();
