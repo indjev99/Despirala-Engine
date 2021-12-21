@@ -779,7 +779,7 @@ struct State
             else if (reason == R_MISTAKE && -delta >= 10) std::cout << "Massive blunder: ";
             else if (reason == R_NONE) std::cout << "(Warning) No reason: ";
             else std::cout << "(Error) Invalid reason " << reason << ": ";
-            std::cout << std::setprecision(IO_PRECISION) << delta << std::endl;
+            std::cout << std::fixed << std::setprecision(IO_PRECISION) << delta << std::endl;
             if (reason == R_MISTAKE && bestMvName != "") std::cout << "Best move was: " << bestMvName << std::endl;
         }
         scoreByReason[reason] += delta;
@@ -788,10 +788,10 @@ struct State
 
     void printScoreByReason()
     {
-        std::cout << "Baseline score: " << std::setprecision(IO_PRECISION) << getInitialScore() << std::endl;
-        std::cout << "Score due to luck: " << std::setprecision(IO_PRECISION) << scoreByReason[R_LUCK] << std::endl;
-        std::cout << "Score due to mistakes: " << std::setprecision(IO_PRECISION) << scoreByReason[R_MISTAKE] << std::endl;
-        if (fabs(scoreByReason[R_NONE]) > IO_EPS) std::cout << "(Warning) Score for no reason: " << std::setprecision(IO_PRECISION) << scoreByReason[R_NONE] << std::endl;
+        std::cout << "Baseline score: " << std::fixed << std::setprecision(IO_PRECISION) << getInitialScore() << std::endl;
+        std::cout << "Score due to luck: " << std::fixed << std::setprecision(IO_PRECISION) << scoreByReason[R_LUCK] << std::endl;
+        std::cout << "Score due to mistakes: " << std::fixed << std::setprecision(IO_PRECISION) << scoreByReason[R_MISTAKE] << std::endl;
+        if (fabs(scoreByReason[R_NONE]) > IO_EPS) std::cout << "(Warning) Score for no reason: " << std::fixed << std::setprecision(IO_PRECISION) << scoreByReason[R_NONE] << std::endl;
     }
 };
 
@@ -1017,7 +1017,7 @@ int simGame(int verbosity = -1, bool printEvalLM = false, bool manualRolls = fal
 
         if (printEvalLM)
         {
-            std::cout << "Expected final score: " << std::setprecision(IO_PRECISION) << s.expScore << std::endl;
+            std::cout << "Expected final score: " << std::fixed << std::setprecision(IO_PRECISION) << s.expScore << std::endl;
         }
 
         s.goods += GOODS_PER_TURN;
@@ -1352,8 +1352,8 @@ void shell()
             std::cin >> numTests;
             Stats stats = findStats(numTests);
             std::cout << std::endl;
-            std::cout << "Mean: " << std::setprecision(IO_PRECISION) << stats.mean << std::endl;
-            std::cout << "Stdev: " << std::setprecision(IO_PRECISION) << stats.stdev << std::endl;
+            std::cout << "Mean: " << std::fixed << std::setprecision(IO_PRECISION) << stats.mean << std::endl;
+            std::cout << "Stdev: " << std::fixed << std::setprecision(IO_PRECISION) << stats.stdev << std::endl;
             std::cout << "5th percentile: " << stats.perc5 << std::endl;
             std::cout << "25th percentile: " << stats.perc25 << std::endl;
             std::cout << "50th percentile: " << stats.perc50 << std::endl;
