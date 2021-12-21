@@ -38,21 +38,22 @@ E.g. Three pairs: threes, fives and sixes.
 
 ## Performance stats
 
-All stats here are obtained with a million tests.
+Stats for model_max are obtained with 40 million tests.
+All othere stats are obtained with a million tests.
 Note that for a perfect model, "expected score" will be equal to the empirical mean.
 
 ### Stats for model_max:
 
 Expected score: 443.616
 
-Mean: 443.662 \
-Stdev: 61.4175 \
+Mean: 443.617 \
+Stdev: 61.4432 \
 5th percentile: 310 \
 25th percentile: 420 \
 50th percentile: 468 \
 75th percentile: 484 \
 95th percentile: 501 \
-Mode: 477
+Mode: 478
 
 ### Stats for model_1000:
 
