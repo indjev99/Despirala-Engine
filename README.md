@@ -8,7 +8,7 @@ Can also evaluate luck and mistakes made during play.
 1. At the start of each turn you roll all six dice for free and then gain five goods.
 2. After that you choose to either reroll the dice (for the cost of one good) or choose some combination that you have not attempted before.
 3. After picking a combination you have to complete it.
-4. To that end, you repeatedly take some of the dice (of your choosing) and reroll only them (for the cost of one good).
+4. To that end, you repeatedly take the dice not found in the combination and reroll only them (for the cost of one good).
 5. If you successfully complete the combination, you win the amount of points it is worth and your turn ends.
 6. If you run out of goods before completing the chosen combination, your turn ends and you do not get any points for that combination.
 7. The six single number combinations (ones, twos, ...) are an exception: you choose when you are done rolling and get points proportional to the number of correct dice.
