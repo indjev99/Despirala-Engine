@@ -1374,13 +1374,13 @@ void shell()
             bool evalLM;
             std::string logName;
 
-            std::cout << "Evaluate luck and mistakes (0 / 1): ";
-            std::cin >> evalLM;
-
             std::cout << "Log name or 'last' for last one: ";
             std::cin >> logName;
 
             if (logName == "last") logName = lastLogName;
+
+            std::cout << "Evaluate luck and mistakes (0 / 1): ";
+            std::cin >> evalLM;
 
             Config config(true, LOG_READ, logName, evalLM);
             simGame(config);
