@@ -923,7 +923,6 @@ void simCollMoves(State& s, int num, int collected, Config& config)
 
         Move mv = config.manualMoves || config.logMode == LOG_READ ? chooseMove(config) : bestMv;
 
-        if (config.logMode == LOG_WRITE) config.logOut << mv.toString() << std::endl;
         if (!config.manualMoves && config.verbose) std::cout << "Move: " << mv.toString() << std::endl;
 
         switch (mv.id)
@@ -964,7 +963,9 @@ void simCollMoves(State& s, int num, int collected, Config& config)
             s.fail = true;
         }
 
-        if ((config.logMode == LOG_READ || config.manualMoves) && s.fail)
+        if (config.logMode == LOG_WRITE) config.logOut << mv.toString() << std::endl;
+
+        if (config.manualMoves && s.fail)
         {
             std::cout << "Invalid move." << std::endl;
             s.fail = false;
@@ -1073,7 +1074,6 @@ int simGame(Config& config)
 
         Move mv = config.manualMoves || config.logMode == LOG_READ ? chooseMove(config) : bestMv;
 
-        if (config.logMode == LOG_WRITE) config.logOut << mv.toString() << std::endl;
         if (!config.manualMoves && config.verbose) std::cout << "Move: " << mv.toString() << std::endl;
 
         int id = mv.id;
@@ -1088,6 +1088,8 @@ int simGame(Config& config)
         case M_REROLL:
             if (s.goods)
             {
+                if (config.logMode == LOG_WRITE) config.logOut << mv.toString() << std::endl;
+
                 --s.goods;
                 s.updateExpScore(getScoreCont(s.free, s.goods), R_MISTAKE, config.evalLM, bestMv.toString());
                 goto diceRoll;
@@ -1098,6 +1100,8 @@ int simGame(Config& config)
         default:
             if (id >= 0 && id < NUM_COMBOS && isFree(s.free, id))
             {
+                if (config.logMode == LOG_WRITE) config.logOut << mv.toString() << std::endl;
+
                 s.free = setUsed(s.free, id);
                 int num = combos[id]->getCollectNumber();
                 if (num)
@@ -1119,7 +1123,7 @@ int simGame(Config& config)
             else s.fail = true;
         }
 
-        if ((config.logMode == LOG_READ || config.manualMoves) && s.fail)
+        if (config.manualMoves && s.fail)
         {
             std::cout << "Invalid move" << std::endl;
             s.fail = false;
