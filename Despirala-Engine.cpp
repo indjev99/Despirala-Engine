@@ -849,12 +849,6 @@ void simCollMoves(State& s, int num, int collected, int verbosity, bool printEva
         s.updateExpScore(num * collected + bestMv.score, first ? R_NONE : R_LUCK, printEvalLM);
         first = false;
 
-        if (verbosity >= 4)
-        {
-            std::cout << "Number of " << numNames[num - 1] << " collected: " << collected << std::endl;
-            std::cout << "Goods: " << s.goods << std::endl;
-        }
-
         moveSelectColl:
 
         Move mv = manualMoves ? chooseMove() : bestMv;
@@ -883,6 +877,7 @@ void simCollMoves(State& s, int num, int collected, int verbosity, bool printEva
                     {
                         if (randDiceRoll() == 0) ++newHits;
                     }
+
                     if (verbosity >= 3)
                     {
                         std::cout << "Number of " << numNames[num - 1] << " rolled: " << newHits << std::endl;
@@ -913,11 +908,6 @@ void simCollMoves(State& s, int num, int collected, int verbosity, bool printEva
             goto moveSelectColl;
         }
     }
-    
-    if (verbosity >= 4)
-    {
-        std::cout << "Number of " << numNames[num - 1] << " collected: " << collected << std::endl;
-    }
 
     int reward = num * collected;
     s.score += reward;
@@ -943,12 +933,6 @@ void simRegMove(State& s, Occurs& occurs, int ed, int reward, int verbosity, boo
     {
         while (!isDone(occurs) && rolls < s.goods)
         {
-            if (verbosity >= 4)
-            {
-                std::cout << "Need: ";
-                printOccurs(occurs);
-            }
-
             ++rolls;
             randRemOcc(ed, occurs);
         }
@@ -1117,10 +1101,6 @@ int simGame(int verbosity = -1, bool printEvalLM = false, bool manualRolls = fal
     if (verbosity >= 0)
     {
         std::cout << "Final score: " << s.score << std::endl;
-    }
-
-    if (printEvalLM)
-    {
         s.printScoreByReason();
     }
 
@@ -1137,53 +1117,50 @@ struct Stats
     int perc75;
     int perc95;
     std::vector<int> modes;
+    std::vector<int> distr;
 };
 
 Stats findStats(int n)
 {
-    std::vector<int> res;
+    Stats stats;
+
     for (int i = 0; i < n; ++i)
     {
-        res.push_back(simGame());
-    }
-    std::sort(res.begin(), res.end());
+        int r = simGame();
 
-    Stats stats;
+        while (r >= (int) stats.distr.size()) stats.distr.push_back(0);
+        ++stats.distr[r];
+    }
 
     long long sum = 0;
     long long sqSum = 0;
-    int maxCnt = 0;
-    int cnt = -1;
-    int curr = -1;
+    int modeCnt = 0;
+    int cumDistr = 0;
 
-    for (int r : res)
+    for (int r = 0; r < (int) stats.distr.size(); ++r)
     {
-        sum += r;
-        sqSum += r * r;
+        sum += (long long) stats.distr[r] * r;
+        sqSum += (long long) stats.distr[r] * r * r;
 
-        if (curr != r)
-        {
-            cnt = 0;
-            curr = r;
-        }
-
-        ++cnt;
-        if (cnt > maxCnt)
+        if (stats.distr[r] > modeCnt)
         {
             stats.modes.clear();
-            maxCnt = cnt;
+            modeCnt = stats.distr[r];
         }
 
-        if (cnt == maxCnt) stats.modes.push_back(curr);
+        if (stats.distr[r] == modeCnt) stats.modes.push_back(r);
+
+        if (cumDistr < n / 20) stats.perc5 = r;
+        if (cumDistr < n / 4) stats.perc25 = r;
+        if (cumDistr < n / 2) stats.perc50 = r;
+        if (cumDistr < 3 * n / 4) stats.perc75 = r;
+        if (cumDistr < 19 * n / 20) stats.perc95 = r;
+
+        cumDistr += stats.distr[r];
     }
 
     stats.mean = (double) sum / n;
     stats.stdev = sqrt((double) sqSum / n - stats.mean * stats.mean);
-    stats.perc5 = res[n / 20];
-    stats.perc25 = res[n / 4];
-    stats.perc50 = res[n / 2];
-    stats.perc75 = res[3 * n / 4];
-    stats.perc95 = res[19 * n / 20];
 
     return stats;
 }
@@ -1306,7 +1283,7 @@ void computeModel()
     std::cout << std::endl << "Considered " << statesVisCnt << " states." << std::endl;
 }
 
-const std::string help = "Possible commands: play / p, example / e, test, expected, credits, help, exit.";
+const std::string help = "Possible commands: play, example, test, expected, credits, help, exit.";
 const std::string credits = "Made by Emil Indzhev.";
 
 void shell()
@@ -1319,7 +1296,7 @@ void shell()
         std::cout << std::endl << "Enter command: ";
         std::cin >> cmd;
 
-        if (cmd == "play" || cmd == "p")
+        if (cmd == "play")
         {
             bool manualRolls;
             bool manualMoves;
@@ -1337,20 +1314,27 @@ void shell()
             std::cout << std::endl;
             simGame(3, printEvalLM, manualRolls, manualMoves);
         }
-        else if (cmd == "example" || cmd == "e")
+        else if (cmd == "example")
         {
             int verbosity;
-            std::cout << "Verbosity (0 - 4): ";
+
+            std::cout << "Verbosity (0 - 3): ";
             std::cin >> verbosity;
+
             std::cout << std::endl;
             simGame(verbosity);
         }
         else if (cmd == "test")
         {
             int numTests;
+            bool exportToFile;
+            std::string fileName;
+
             std::cout << "Number of tests: ";
             std::cin >> numTests;
+
             Stats stats = findStats(numTests);
+
             std::cout << std::endl;
             std::cout << "Mean: " << std::fixed << std::setprecision(IO_PRECISION) << stats.mean << std::endl;
             std::cout << "Stdev: " << std::fixed << std::setprecision(IO_PRECISION) << stats.stdev << std::endl;
@@ -1365,6 +1349,23 @@ void shell()
                 std::cout << " " << m;
             }
             std::cout << std::endl;
+
+            std::cout << std::endl;
+            std::cout << "Export raw data to file (0 / 1): ";
+            std::cin >> exportToFile;
+
+            if (exportToFile)
+            {    
+                std::cout << "File name: ";
+                std::cin >> fileName;
+
+                std::ofstream file(fileName.c_str());
+
+                for (int d : stats.distr)
+                {
+                    file << d << std::endl;
+                }
+            }
         }
         else if (cmd == "expected")
         {
