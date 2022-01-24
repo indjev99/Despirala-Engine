@@ -1,0 +1,122 @@
+Turn: 1/14
+Current score: 0
+Rolled: 1 3 4 5 5 6
+Goods: 5
+Move: Collect 1
+Move: Stop collecting
+Won 1 points.
+
+Turn: 2/14
+Current score: 1
+Rolled: 1 2 3 4 6 6
+Goods: 10
+Move: Collect 6
+Move: Continue collecting
+Number of sixes rolled: 1
+Move: Stop collecting
+Won 18 points.
+
+Turn: 3/14
+Current score: 19
+Rolled: 3 3 3 4 6 6
+Goods: 14
+Move: Collect 3
+Move: Stop collecting
+Won 9 points.
+
+Turn: 4/14
+Current score: 28
+Rolled: 2 2 3 3 3 6
+Goods: 19
+Move: Four of a kind 3
+Took 3 rolls to complete the combination.
+Won 40 points.
+
+Turn: 5/14
+Current score: 68
+Rolled: 2 2 2 3 4 6
+Goods: 21
+Move: Collect 2
+Move: Stop collecting
+Won 6 points.
+
+Turn: 6/14
+Current score: 74
+Rolled: 1 1 3 4 4 6
+Goods: 26
+Move: Collect 4
+Move: Stop collecting
+Won 8 points.
+
+Turn: 7/14
+Current score: 82
+Rolled: 3 3 4 4 5 6
+Goods: 31
+Move: Reroll
+Rolled: 2 2 3 3 4 6
+Goods: 30
+Move: Reroll
+Rolled: 1 2 3 4 5 5
+Goods: 29
+Move: Collect 5
+Move: Stop collecting
+Won 10 points.
+
+Turn: 8/14
+Current score: 92
+Rolled: 2 2 3 4 5 6
+Goods: 34
+Move: Straight
+Took 4 rolls to complete the combination.
+Won 50 points.
+
+Turn: 9/14
+Current score: 142
+Rolled: 3 3 3 3 6 6
+Goods: 35
+Move: Six of a kind 3
+Took 17 rolls to complete the combination. 
+Won 60 points.
+
+Turn: 10/14
+Current score: 202
+Rolled: 1 1 3 3 4 6
+Goods: 23
+Move: Despirala
+Took 13 rolls to complete the combination.
+Won 80 points.
+
+Turn: 11/14
+Current score: 282
+Rolled: 2 2 3 4 5 6
+Goods: 15
+Move: Kamerun
+Took 4 rolls to complete the combination.
+Won 45 points.
+
+Turn: 12/14
+Current score: 327
+Rolled: 1 1 2 6 6 6
+Goods: 16
+Move: General
+Took 7 rolls to complete the combination. 
+Won 70 points.
+
+Turn: 13/14
+Current score: 397
+Rolled: 2 3 3 3 3 4
+Goods: 14
+Move: Reroll
+Rolled: 1 2 4 4 5 6
+Goods: 13
+Move: Three pairs 4 6 5
+Didn't complete the combination.
+
+Turn: 14/14
+Current score: 397
+Rolled: 2 3 3 3 4 4
+Goods: 5
+Move: Two triples 3 4
+Didn't complete the combination.
+
+Final score: 397

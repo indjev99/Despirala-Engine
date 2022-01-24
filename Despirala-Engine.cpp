@@ -9,6 +9,7 @@
 #include <unordered_set>
 #include <numeric>
 #include <random>
+#include <chrono>
 #include <math.h>
 #include <time.h>
 
@@ -1212,7 +1213,7 @@ Stats findStats(int n)
 
 std::string modelName()
 {
-    return "model_" + (NUM_TRIALS > 0 ? std::to_string(NUM_TRIALS) : "max");
+    return (NUM_TRIALS > 0 ? std::to_string(NUM_TRIALS) : "max") + ".model";
 }
 
 void storeModel()
@@ -1328,12 +1329,19 @@ void computeModel()
     std::cout << std::endl << "Considered " << statesVisCnt << " states." << std::endl;
 }
 
+long long timestamp()
+{
+    return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+}
+
 const std::string help = "Possible commands: play, replay, test, expected, credits, help, exit.";
 const std::string credits = "Made by Emil Indzhev.";
 
 void shell()
 {
     std::string cmd;
+    std::string lastLogName;
+
     std::cout << std::endl << help << std::endl;
 
     while (true)
@@ -1356,17 +1364,25 @@ void shell()
             std::cout << "Evaluate luck and mistakes (0 / 1): ";
             std::cin >> evalLM;
 
-            Config config(true, LOG_WRITE, "log.txt", evalLM, manualRolls, manualMoves);
+            lastLogName = std::to_string(timestamp()) + ".log";
+
+            Config config(true, LOG_WRITE, lastLogName, evalLM, manualRolls, manualMoves);
             simGame(config);
         }
         else if (cmd == "replay")
         {
             bool evalLM;
+            std::string logName;
 
             std::cout << "Evaluate luck and mistakes (0 / 1): ";
             std::cin >> evalLM;
 
-            Config config(true, LOG_READ, "log.txt", evalLM);
+            std::cout << "Log name or 'last' for last one: ";
+            std::cin >> logName;
+
+            if (logName == "last") logName = lastLogName;
+
+            Config config(true, LOG_READ, logName, evalLM);
             simGame(config);
         }
         else if (cmd == "test")

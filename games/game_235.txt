@@ -1,0 +1,124 @@
+Turn: 1/14
+Current score: 0
+Rolled: 1 3 4 4 5 5
+Goods: 5
+Move: Collect 4
+Move: Stop collecting
+Won 8 points.
+
+Turn: 2/14
+Current score: 8
+Rolled: 1 2 3 4 6 6
+Goods: 10
+Move: Collect 6
+Move: Continue collecting
+Number of sixes rolled: 0
+Move: Continue collecting
+Number of sixes rolled: 0
+Move: Continue collecting
+Number of sixes rolled: 1
+Move: Stop collecting
+Won 18 points.
+
+Turn: 3/14
+Current score: 26
+Rolled: 1 2 2 2 3 6
+Goods: 12
+Move: Collect 2
+Move: Stop collecting
+Won 6 points.
+
+Turn: 4/14
+Current score: 32
+Rolled: 3 3 3 4 5 6
+Goods: 17
+Move: Collect 3
+Move: Stop collecting
+Won 9 points.
+
+Turn: 5/14
+Current score: 41
+Rolled: 2 2 4 4 5 6
+Goods: 22
+Move: Reroll
+Rolled: 1 2 2 3 5 5
+Goods: 21
+Move: Collect 5
+Move: Stop collecting
+Won 10 points.
+
+Turn: 6/14
+Current score: 51
+Rolled: 1 2 2 4 6 6
+Goods: 26
+Move: General
+Took 10 rolls to complete the combination.
+Won 70 points.
+
+Turn: 7/14
+Current score: 121
+Rolled: 1 1 2 5 5 6
+Goods: 21
+Move: Collect 1
+Move: Stop collecting
+Won 2 points.
+
+Turn: 8/14
+Current score: 123
+Rolled: 1 2 3 3 4 4
+Goods: 26
+Move: Reroll
+Rolled: 2 3 4 5 5 6
+Goods: 25
+Move: Straight
+Took 13 rolls to complete the combination.
+Won 50 points.
+
+Turn: 9/14
+Current score: 173
+Rolled: 1 1 1 2 3 3
+Goods: 17
+Move: Despirala
+Didn't complete the combination.
+
+Turn: 10/14
+Current score: 173
+Rolled: 1 2 2 2 6 6
+Goods: 5
+Move: Two triples 2 6
+Didn't complete the combination.
+
+Turn: 11/14
+Current score: 173
+Rolled: 1 2 4 4 5 5
+Goods: 5
+Move: Three pairs 5 4 2
+Took 3 rolls to complete the combination.
+Won 22 points.
+
+Turn: 12/14
+Current score: 195
+Rolled: 1 2 5 6 6 6
+Goods: 7
+Move: Four of a kind 6
+Took 1 rolls to complete the combination. 
+Won 40 points.
+
+Turn: 13/14
+Current score: 235
+Rolled: 2 4 4 4 5 6
+Goods: 11
+Move: Six of a kind 4
+Didn't complete the combination.
+
+Turn: 14/14
+Current score: 235
+Rolled: 1 2 4 4 5 5
+Goods: 5
+Move: Reroll
+Rolled: 1 1 4 4 6 6
+Goods: 4
+Move: Kamerun
+Didn't complete the combination.
+
+Final score: 235
