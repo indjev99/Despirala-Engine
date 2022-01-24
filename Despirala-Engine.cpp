@@ -1071,7 +1071,7 @@ int simGame(Config& config)
 
         moveSelect:
 
-        Move mv = config.manualRolls || config.logMode == LOG_READ ? chooseMove(config) : bestMv;
+        Move mv = config.manualMoves || config.logMode == LOG_READ ? chooseMove(config) : bestMv;
 
         if (config.logMode == LOG_WRITE) config.logOut << mv.toString() << std::endl;
         if (!config.manualMoves && config.verbose) std::cout << "Move: " << mv.toString() << std::endl;
