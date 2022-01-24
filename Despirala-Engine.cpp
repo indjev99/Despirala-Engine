@@ -413,12 +413,12 @@ void genCodeIdxMap()
 
 double rollsDistr[NUM_DICE + 1][VALID_CODES][MAX_GOODS + 1];
 
-void findRollsDistrSingle(int ed, int idx)
+void findRollsDistrSingle(int extraDice, int idx)
 {
     Occurs occurs;
     double changeProb = 0;
     int code = indexToCode[idx];
-    int numDice = ed + diceInIndex[idx];
+    int numDice = extraDice + diceInIndex[idx];
     codeToOccurs(code, occurs, false);
     for (int i = STARTS_ORD_CODES[numDice]; i < STARTS_ORD_CODES[numDice + 1]; ++i)
     {
@@ -432,28 +432,28 @@ void findRollsDistrSingle(int ed, int idx)
         int newIdx = codeToIndex[newCode];
         for (int j = 0; j <= MAX_GOODS; ++j)
         {
-            rollsDistr[ed][idx][j] += rollsDistr[ed][newIdx][j] * ordIndexProb[i];
+            rollsDistr[extraDice][idx][j] += rollsDistr[extraDice][newIdx][j] * ordIndexProb[i];
         }
     }
     for (int i = MAX_GOODS; i >= 0 ; --i)
     {
-        rollsDistr[ed][idx][i] = 0;
+        rollsDistr[extraDice][idx][i] = 0;
         for (int j = i - 1; j >= 0 ; --j)
         {
-            rollsDistr[ed][idx][i] += rollsDistr[ed][idx][j] * pow(1 - changeProb, i - j - 1);
+            rollsDistr[extraDice][idx][i] += rollsDistr[extraDice][idx][j] * pow(1 - changeProb, i - j - 1);
         }
     }
 }
 
 void findRollsDistr()
 {
-    for (int ed = 0; ed <= NUM_DICE; ++ed)
+    for (int extraDice = 0; extraDice <= NUM_DICE; ++extraDice)
     {
-        rollsDistr[ed][0][0] = 1;
+        rollsDistr[extraDice][0][0] = 1;
         for (int i = 1; i < VALID_CODES; ++i)
         {
-            if (ed + diceInIndex[i] > NUM_DICE) continue; 
-            findRollsDistrSingle(ed, i);
+            if (extraDice + diceInIndex[i] > NUM_DICE) continue; 
+            findRollsDistrSingle(extraDice, i);
         }
     }
 }
@@ -810,6 +810,19 @@ void printOccurs(const Occurs& occurs)
     std::cout << std::endl;
 }
 
+void chooseOcc(Occurs& occurs)
+{
+    occurs.fill(0);
+    std::cout << "Rolled: ";
+    int side;
+    for (int i = 0; i < NUM_DICE; ++i)
+    {
+        std::cin >> side;
+        if (side >= 1 && side <= NUM_SIDES) ++occurs[side - 1];
+        else --i;
+    }
+}
+
 Move chooseMove()
 {
     std::cout << "Move: ";
@@ -923,7 +936,7 @@ bool isDone(const Occurs& occurs)
     return std::all_of(occurs.begin(), occurs.end(), [](int n) {return n == 0;});
 }
 
-void simRegMove(State& s, Occurs& occurs, int ed, int reward, int verbosity, bool printEvalLM, bool manualRolls)
+void simRegMove(State& s, Occurs& occurs, int extraDice, int reward, int verbosity, bool printEvalLM, bool manualRolls)
 {
     bool instaDone = isDone(occurs);
     int rolls = 0;
@@ -934,7 +947,7 @@ void simRegMove(State& s, Occurs& occurs, int ed, int reward, int verbosity, boo
         while (!isDone(occurs) && rolls < s.goods)
         {
             ++rolls;
-            randRemOcc(ed, occurs);
+            randRemOcc(extraDice, occurs);
         }
         won = isDone(occurs);
     }
@@ -964,19 +977,6 @@ void simRegMove(State& s, Occurs& occurs, int ed, int reward, int verbosity, boo
     if (won && verbosity >= 3)
     {
         std::cout << "Won " << reward << " points." << std::endl;
-    }
-}
-
-void chooseOcc(Occurs& occurs)
-{
-    occurs.fill(0);
-    std::cout << "Rolled: ";
-    int side;
-    for (int i = 0; i < NUM_DICE; ++i)
-    {
-        std::cin >> side;
-        if (side >= 1 && side <= NUM_SIDES) ++occurs[side - 1];
-        else --i;
     }
 }
 
