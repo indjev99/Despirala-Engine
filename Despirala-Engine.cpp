@@ -928,12 +928,16 @@ void simCollMoves(State& s, int num, int collected, Config& config)
         switch (mv.id)
         {
         case M_STOP_COLL:
+            if (config.logMode == LOG_WRITE) config.logOut << mv.toString() << std::endl;
+
             s.updateExpScore(num * collected + getScore(s.free, s.goods), R_MISTAKE, config.evalLM);
             break;
         
         case M_CONT_COLL:
             if (s.goods && left)
             {
+                if (config.logMode == LOG_WRITE) config.logOut << mv.toString() << std::endl;
+
                 s.updateExpScore(num * collected + getScoreCollContinue(s.free, s.goods, num, left), R_MISTAKE, config.evalLM);
                 cont = true;
                 --s.goods;
@@ -962,8 +966,6 @@ void simCollMoves(State& s, int num, int collected, Config& config)
         default:
             s.fail = true;
         }
-
-        if (config.logMode == LOG_WRITE) config.logOut << mv.toString() << std::endl;
 
         if (config.manualMoves && s.fail)
         {
@@ -995,7 +997,7 @@ void simRegMove(State& s, Occurs& occurs, int extraDice, int reward, Config& con
 
     if (config.manualRolls || config.logMode == LOG_READ)
     {
-        if (!isDone(occurs)) rolls = chooseNumRolls(config);
+        if (!instaDone && s.goods > 0) rolls = chooseNumRolls(config);
 
         won = rolls >= 0 && rolls <= s.goods;
         if (!won) rolls = s.goods;
@@ -1010,7 +1012,7 @@ void simRegMove(State& s, Occurs& occurs, int extraDice, int reward, Config& con
         won = isDone(occurs);
     }
 
-    if (!instaDone && config.logMode == LOG_WRITE) config.logOut << (won ? rolls : -1) << std::endl;
+    if (!instaDone && s.goods > 0 && config.logMode == LOG_WRITE) config.logOut << (won ? rolls : -1) << std::endl;
 
     if (!config.manualRolls && config.verbose)
     {
