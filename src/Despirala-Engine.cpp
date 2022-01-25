@@ -1012,6 +1012,9 @@ void simRegMove(State& s, Occurs& occurs, int extraDice, int reward, Config& con
         won = isDone(occurs);
     }
 
+    s.goods -= rolls;
+    if (won) s.score += reward;
+
     if (!instaDone && s.goods > 0 && config.logMode == LOG_WRITE) config.logOut << (won ? rolls : -1) << std::endl;
 
     if (!config.manualRolls && config.verbose)
@@ -1020,15 +1023,12 @@ void simRegMove(State& s, Occurs& occurs, int extraDice, int reward, Config& con
         else std::cout << "Didn't complete the combination." << std::endl;
     }
 
+    s.updateExpScore(getScore(s.free, s.goods), instaDone ? R_NONE : R_LUCK, config.evalLM);
+
     if (won && config.verbose)
     {
         std::cout << "Won " << reward << " points." << std::endl;
     }
-
-    s.goods -= rolls;
-    if (won) s.score += reward;
-
-    s.updateExpScore(getScore(s.free, s.goods), instaDone ? R_NONE : R_LUCK, config.evalLM);
 }
 
 int simGame(Config& config)
@@ -1380,10 +1380,10 @@ void shell()
             bool evalLM;
             std::string logName;
 
-            std::cout << "Log name or 'last' for last one: ";
+            std::cout << (lastLogName != "" ? "Log name or 'last' for last one: " : "Log name: ");
             std::cin >> logName;
 
-            if (logName == "last") logName = lastLogName;
+            if (lastLogName != "" && logName == "last") logName = lastLogName;
 
             std::cout << "Evaluate luck and mistakes (0 / 1): ";
             std::cin >> evalLM;
