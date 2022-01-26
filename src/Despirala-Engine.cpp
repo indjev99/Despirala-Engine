@@ -999,7 +999,7 @@ void simRegMove(State& s, Occurs& occurs, int extraDice, int reward, Config& con
     {
         if (!instaDone && s.goods > 0) rolls = chooseNumRolls(config);
 
-        won = rolls >= 0 && rolls <= s.goods;
+        won = instaDone || (rolls > 0 && rolls <= s.goods);
         if (!won) rolls = s.goods;
     }
     else
@@ -1012,9 +1012,6 @@ void simRegMove(State& s, Occurs& occurs, int extraDice, int reward, Config& con
         won = isDone(occurs);
     }
 
-    s.goods -= rolls;
-    if (won) s.score += reward;
-
     if (!instaDone && s.goods > 0 && config.logMode == LOG_WRITE) config.logOut << (won ? rolls : -1) << std::endl;
 
     if (!config.manualRolls && config.verbose)
@@ -1022,6 +1019,9 @@ void simRegMove(State& s, Occurs& occurs, int extraDice, int reward, Config& con
         if (won) std::cout << "Took " << rolls << " rolls to complete the combination. " << std::endl;
         else std::cout << "Didn't complete the combination." << std::endl;
     }
+
+    s.goods -= rolls;
+    if (won) s.score += reward;
 
     s.updateExpScore(getScore(s.free, s.goods), instaDone ? R_NONE : R_LUCK, config.evalLM);
 
