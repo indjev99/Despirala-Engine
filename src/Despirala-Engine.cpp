@@ -12,6 +12,7 @@
 #include <chrono>
 #include <math.h>
 #include <time.h>
+#include <assert.h>
 
 const double IO_EPS = 5e-4;
 const int IO_PRECISION = 3;
@@ -48,6 +49,7 @@ struct Target
         args({}),
         points(points),
         occurs(occurs) {}
+
     Target(const std::vector<int>& args, int points, const Occurs& occurs):
         args(args),
         points(points),
@@ -59,6 +61,7 @@ struct Combo
     Combo(const std::string& name, int points):
         name(name),
         points(points) {}
+
     std::string getName() const
     {
         return name;
@@ -97,6 +100,7 @@ struct CollectCombo : Combo
     CollectCombo(const std::string& name, int number):
         Combo(name, 0),
         number(number) {}
+
     int getNumArgs() const
     {
         return 1;
@@ -116,6 +120,7 @@ struct FixedCombo : Combo
     FixedCombo(const std::string& name, int points, const Occurs& occurs):
         Combo(name, points),
         occurs(occurs) {}
+
     std::vector<Target> getTargets(const Occurs& diceOccurs)
     {
         return {Target(points, occurs)};
@@ -135,6 +140,7 @@ struct PermCombo : Combo
     PermCombo(const std::string& name, int points, const Occurs& occurs):
         Combo(name, points),
         templateOccurs(sortedOccurs(occurs)) {}
+
     int getNumArgs() const
     {
         int numArgs = 0;
@@ -212,6 +218,7 @@ struct SPermCombo : PermCombo
 {
     SPermCombo(const std::string& name, const Occurs& occurs):
         PermCombo(name, 0, occurs) {};
+
     Target getTargetByArgs(const std::vector<int>& args) const
     {
         Occurs occurs;
@@ -756,7 +763,7 @@ struct State
 
     int getTurn()
     {
-        int turn = 1;
+        int turn = 0;
         for (int i = 0; i < NUM_COMBOS; ++i)
         {
             if ((free >> i & 1) == 0) ++turn;
@@ -797,29 +804,63 @@ struct State
 };
 
 #define LOG_NONE 0
-#define LOG_READ 1
-#define LOG_WRITE 2
+#define LOG_WRITE 1
+#define LOG_READ 2
 
 struct Config
 {
+    int numPlayers;
+
     bool verbose;
-    bool manualRolls;
-    bool manualMoves;
     bool evalLM;
+
     int logMode;
     std::ifstream logIn;
     std::ofstream logOut;
 
-    Config(bool verbose = false, int logMode = LOG_NONE, const std::string logName = "", bool evalLM = false, bool manualRolls = false, bool manualMoves = false):
+    std::vector<bool> manualRollsAll;
+    std::vector<bool> manualMovesAll;
+
+    int player;
+    int manualRolls;
+    int manualMoves;
+
+    Config(int numPlayers = 1, bool verbose = false, bool evalLM = false, int logMode = LOG_NONE, const std::string logName = "",
+           const std::vector<bool>& manualRollsAll = {}, const std::vector<bool>& manualMovesAll = {}):
+        numPlayers(numPlayers),
         verbose(verbose),
-        manualRolls(manualRolls),
-        manualMoves(manualMoves),
         evalLM(evalLM),
         logMode(logMode)
     {
-        if (logMode == LOG_READ) logIn.open(logName.c_str());
-        else if (logMode == LOG_WRITE) logOut.open(logName.c_str());
-    }  
+        if (logMode == LOG_WRITE) logOut.open(logName.c_str());
+        else if (logMode == LOG_READ) logIn.open(logName.c_str());
+
+        if (logMode == LOG_READ) assert(numPlayers == 0);
+        else assert(numPlayers > 0);
+
+        if (logMode == LOG_WRITE) logOut << (this->numPlayers) << std::endl;
+        else if (logMode == LOG_READ) logIn >> (this->numPlayers);
+
+        this->manualRollsAll = vectorOrDefault(manualRollsAll);
+        this->manualMovesAll = vectorOrDefault(manualMovesAll);
+    } 
+
+    void setPlayer(int player)
+    {
+        this->player = player;
+        manualRolls = manualRollsAll[player];
+        manualMoves = manualMovesAll[player];
+    }
+
+private:
+
+    std::vector<bool> vectorOrDefault(std::vector<bool> vec)
+    {
+        assert(vec.empty() || (int) vec.size() == numPlayers);
+
+        if (vec.empty()) return std::vector<bool>(numPlayers, false);
+        else return vec;
+    }
 };
 
 void printOcc(const Occurs& occurs, Config& config, bool useConfig)
@@ -1031,158 +1072,193 @@ void simRegMove(State& s, Occurs& occurs, int extraDice, int reward, Config& con
     }
 }
 
-int simGame(Config& config)
+void simTurn(State& s, Config& config)
 {
-    State s;
     Occurs diceOccurs;
-
-    if (config.verbose) std::cout << std::endl;
-
-    while (!s.fail && s.getTurn() <= NUM_COMBOS)
-    {
-        if (config.verbose)
-        {
-            std::cout << "Turn: " << s.getTurn() << "/" << NUM_COMBOS << std::endl;
-            std::cout << "Current score: " << s.score << std::endl;
-        }
-
-        s.updateExpScore(getScore(s.free, s.goods), R_NONE, config.evalLM);
-
-        if (config.evalLM)
-        {
-            std::cout << "Expected final score: " << std::fixed << std::setprecision(IO_PRECISION) << s.expScore << std::endl;
-        }
-
-        s.goods += GOODS_PER_TURN;
-
-        diceRoll:
-
-        if (config.manualRolls || config.logMode == LOG_READ) chooseOcc(diceOccurs, config);
-        else randOcc(diceOccurs);
-
-        if (config.logMode == LOG_WRITE) printOcc(diceOccurs, config, true);
-        if (!config.manualRolls && config.verbose) printOcc(diceOccurs, config, false);
-
-        Move bestMv = getMove(s.free, s.goods, diceOccurs);
-
-        s.updateExpScore(bestMv.score, R_LUCK, config.evalLM);
-
-        if (config.verbose)
-        {
-            std::cout << "Goods: " << s.goods << std::endl;
-        }
-
-        moveSelect:
-
-        Move mv = config.manualMoves || config.logMode == LOG_READ ? chooseMove(config) : bestMv;
-
-        if (!config.manualMoves && config.verbose) std::cout << "Move: " << mv.toString() << std::endl;
-
-        int id = mv.id;
-        switch (id)
-        {
-        case M_ERROR:
-        case M_STOP_COLL:
-        case M_CONT_COLL:
-            s.fail = true;
-            break;
-        
-        case M_REROLL:
-            if (s.goods)
-            {
-                if (config.logMode == LOG_WRITE) config.logOut << mv.toString() << std::endl;
-
-                --s.goods;
-                s.updateExpScore(getScoreCont(s.free, s.goods), R_MISTAKE, config.evalLM, bestMv.toString());
-                goto diceRoll;
-            }
-            else s.fail = true;
-            break;
-        
-        default:
-            if (id >= 0 && id < NUM_COMBOS && isFree(s.free, id))
-            {
-                if (config.logMode == LOG_WRITE) config.logOut << mv.toString() << std::endl;
-
-                s.free = setUsed(s.free, id);
-                int num = combos[id]->getCollectNumber();
-                if (num)
-                {
-                    int collected = diceOccurs[num - 1];
-                    s.updateExpScore(num * collected + getScoreColl(s.free, s.goods, num, NUM_DICE - collected), R_MISTAKE, config.evalLM, bestMv.toString());
-                    simCollMoves(s, num, collected, config);
-                }
-                else
-                {
-                    Target t = combos[id]->getTargetByArgs(mv.args);
-                    Occurs newOccurs = t.occurs;
-                    int extraDice = NUM_DICE - diceInOcc(newOccurs);
-                    remOcc(newOccurs, diceOccurs);
-                    s.updateExpScore(getMoveScore(s.free, s.goods, newOccurs, extraDice, t.points), R_MISTAKE, config.evalLM, bestMv.toString());
-                    simRegMove(s, newOccurs, extraDice, t.points, config);
-                }
-            }
-            else s.fail = true;
-        }
-
-        if (config.manualMoves && s.fail)
-        {
-            std::cout << "Invalid move" << std::endl;
-            s.fail = false;
-            goto moveSelect;
-        }
-
-        if (config.verbose) std::cout << std::endl;
-    }
-
-    if (s.fail)
-    {
-        std::cout << "Encountered error!" << std::endl;
-        return 0;
-    }
-
-    s.score += s.goods * POINTS_PER_GOOD;
-
-    s.updateExpScore(0, R_NONE, config.evalLM);
 
     if (config.verbose)
     {
-        std::cout << "Final score: " << s.score << std::endl;
+        std::cout << std::endl;
+        if (config.numPlayers > 1) std::cout << "Player " << config.player << std::endl;
+        std::cout << "Turn: " << s.getTurn() + 1 << "/" << NUM_COMBOS << std::endl;
+        std::cout << "Current score: " << s.score << std::endl;
     }
+
+    s.updateExpScore(getScore(s.free, s.goods), R_NONE, config.evalLM);
 
     if (config.evalLM)
     {
-        s.printScoreByReason();
+        std::cout << "Expected final score: " << std::fixed << std::setprecision(IO_PRECISION) << s.expScore << std::endl;
     }
 
-    return s.score;
+    s.goods += GOODS_PER_TURN;
+
+    diceRoll:
+
+    if (config.manualRolls || config.logMode == LOG_READ) chooseOcc(diceOccurs, config);
+    else randOcc(diceOccurs);
+
+    if (config.logMode == LOG_WRITE) printOcc(diceOccurs, config, true);
+    if (!config.manualRolls && config.verbose) printOcc(diceOccurs, config, false);
+
+    Move bestMv = getMove(s.free, s.goods, diceOccurs);
+
+    s.updateExpScore(bestMv.score, R_LUCK, config.evalLM);
+
+    if (config.verbose)
+    {
+        std::cout << "Goods: " << s.goods << std::endl;
+    }
+
+    moveSelect:
+
+    Move mv = config.manualMoves || config.logMode == LOG_READ ? chooseMove(config) : bestMv;
+
+    if (!config.manualMoves && config.verbose) std::cout << "Move: " << mv.toString() << std::endl;
+
+    int id = mv.id;
+    switch (id)
+    {
+    case M_ERROR:
+    case M_STOP_COLL:
+    case M_CONT_COLL:
+        s.fail = true;
+        break;
+    
+    case M_REROLL:
+        if (s.goods)
+        {
+            if (config.logMode == LOG_WRITE) config.logOut << mv.toString() << std::endl;
+
+            --s.goods;
+            s.updateExpScore(getScoreCont(s.free, s.goods), R_MISTAKE, config.evalLM, bestMv.toString());
+            goto diceRoll;
+        }
+        else s.fail = true;
+        break;
+    
+    default:
+        if (id >= 0 && id < NUM_COMBOS && isFree(s.free, id))
+        {
+            if (config.logMode == LOG_WRITE) config.logOut << mv.toString() << std::endl;
+
+            s.free = setUsed(s.free, id);
+            int num = combos[id]->getCollectNumber();
+            if (num)
+            {
+                int collected = diceOccurs[num - 1];
+                s.updateExpScore(num * collected + getScoreColl(s.free, s.goods, num, NUM_DICE - collected), R_MISTAKE, config.evalLM, bestMv.toString());
+                simCollMoves(s, num, collected, config);
+            }
+            else
+            {
+                Target t = combos[id]->getTargetByArgs(mv.args);
+                Occurs newOccurs = t.occurs;
+                int extraDice = NUM_DICE - diceInOcc(newOccurs);
+                remOcc(newOccurs, diceOccurs);
+                s.updateExpScore(getMoveScore(s.free, s.goods, newOccurs, extraDice, t.points), R_MISTAKE, config.evalLM, bestMv.toString());
+                simRegMove(s, newOccurs, extraDice, t.points, config);
+            }
+        }
+        else s.fail = true;
+    }
+
+    if (config.manualMoves && s.fail)
+    {
+        if (config.verbose) std::cout << "Invalid move" << std::endl;
+        s.fail = false;
+        goto moveSelect;
+    }
+
+    assert(!s.fail);
+
+    if (s.getTurn() == NUM_COMBOS)
+    {
+        s.score += s.goods * POINTS_PER_GOOD;
+        s.goods = 0;
+
+        s.updateExpScore(0, R_NONE, config.evalLM);
+    }
+}
+
+struct Result
+{
+    int score = 0;
+    int rank = 0;
+};
+
+std::vector<Result> simGame(Config& config)
+{
+    if (config.verbose) std::cout << std::endl;
+
+    std::vector<State> states(config.numPlayers);
+    for (int turn = 0; turn < NUM_COMBOS; ++turn)
+    {
+        for (int player = 0; player < config.numPlayers; ++player)
+        {
+            config.setPlayer(player);
+            simTurn(states[player], config);
+        }
+    }
+
+    std::vector<Result> results(config.numPlayers);
+    for (int player = 0; player < config.numPlayers; ++player)
+    {
+        results[player].score = states[player].score;
+        for (int other = 0; other < config.numPlayers; ++other)
+        {
+            if (other == player) continue;
+            results[player].rank += states[other].score < states[player].score ? 1 : -1;
+        }
+    }
+
+    for (int player = 0; player < config.numPlayers; ++player)
+    {
+        if (config.verbose) std::cout << std::endl;
+
+        if (config.verbose)
+        {
+            if (config.numPlayers > 1) std::cout << "Player " << player + 1 << std::endl;
+            std::cout << "Final score: " << results[player].score << std::endl;
+            if (config.numPlayers > 1) std::cout << "Final rank: " << results[player].rank << std::endl;
+        }
+
+        if (config.evalLM)
+        {
+            states[player].printScoreByReason();
+        }
+    }
+
+    return results;
 }
 
 struct Stats
 {
-    double mean;
-    double stdev;
-    int perc5;
-    int perc25;
-    int perc50;
-    int perc75;
-    int perc95;
+    double mean = 0;
+    double stdev = 0;
+    int perc5 = 0;
+    int perc25 = 0;
+    int perc50 = 0;
+    int perc75 = 0;
+    int perc95 = 0;
     std::vector<int> modes;
     std::vector<int> distr;
 };
 
-Stats findStats(int n)
+Stats findStats(int n, bool justDistr = false)
 {
     Stats stats;
 
     for (int i = 0; i < n; ++i)
     {
         Config config;
-        int r = simGame(config);
+        int r = simGame(config)[0].score;
 
         while (r >= (int) stats.distr.size()) stats.distr.push_back(0);
         ++stats.distr[r];
     }
+
+    if (justDistr) return stats;
 
     long long sum = 0;
     long long sqSum = 0;
@@ -1357,22 +1433,39 @@ void shell()
 
         if (cmd == "play")
         {
-            bool manualRolls;
-            bool manualMoves;
+            int numPlayers = 0;
+            std::vector<bool> manualRollsAll;
+            std::vector<bool> manualMovesAll;
             bool evalLM;
 
-            std::cout << "Manual rolls (0 / 1): ";
-            std::cin >> manualRolls;
+            std::cout << "Number of players: ";
+            while (numPlayers <= 0)
+            {
+                std::cin >> numPlayers;
+            }
 
-            std::cout << "Manual moves (0 / 1): ";
-            std::cin >> manualMoves;
+            for (int player = 0; player < numPlayers; ++player)
+            {
+                bool manualRolls, manualMoves;
+
+                if (numPlayers > 1) std::cout << "Player " << player + 1 << ": ";
+                std::cout << "Manual rolls (0 / 1): ";
+                std::cin >> manualRolls;
+
+                if (numPlayers > 1) std::cout << "Player " << player + 1 << ": ";
+                std::cout << "Manual moves (0 / 1): ";
+                std::cin >> manualMoves;
+
+                manualRollsAll.push_back(manualRolls);
+                manualMovesAll.push_back(manualMoves);
+            }
 
             std::cout << "Evaluate luck and mistakes (0 / 1): ";
             std::cin >> evalLM;
 
             lastLogName = std::to_string(timestamp()) + ".log";
 
-            Config config(true, LOG_WRITE, lastLogName, evalLM, manualRolls, manualMoves);
+            Config config(numPlayers, true, evalLM, LOG_WRITE, lastLogName, manualRollsAll, manualMovesAll);
             simGame(config);
         }
         else if (cmd == "replay")
@@ -1388,7 +1481,7 @@ void shell()
             std::cout << "Evaluate luck and mistakes (0 / 1): ";
             std::cin >> evalLM;
 
-            Config config(true, LOG_READ, logName, evalLM);
+            Config config(0, true, evalLM, LOG_READ, logName);
             simGame(config);
         }
         else if (cmd == "test")
@@ -1437,14 +1530,17 @@ void shell()
         }
         else if (cmd == "expected")
         {
+            std::cout << std::endl;
             std::cout << "Expected score: " << getScore(NUM_MASKS - 1, 0) << std::endl;
         }
         if (cmd == "credits")
         {
+            std::cout << std::endl;
             std::cout << credits << std::endl;
         }
         if (cmd == "help")
         {
+            std::cout << std::endl;
             std::cout << help << std::endl;
         }
         if (cmd == "exit") break;
