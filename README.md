@@ -44,9 +44,9 @@ The UI is entirely in the console. It should be fairly intuitive. Moves are writ
 
 ## Performance stats
 
-Stats for normal_exact.model are obtained with 100 million tests.
+Stats for normal_exact.model and misere_exact.model are obtained with 100 million tests.
 All othere stats are obtained with a million tests.
-Note that for a perfect model, "expected score" will be equal to the empirical mean.
+Note that for an exact model, "expected score" will be equal to the empirical mean.
 
 ### Stats for normal_exact.model
 
@@ -117,13 +117,13 @@ Mode: 378
 
 Expected score: 105.975
 
-Mean: 105.938 \
-Stdev: 52.494 \
+Mean: 105.973 \
+Stdev: 52.456 \
 5th percentile: 28 \
 25th percentile: 71 \
 50th percentile: 99 \
 75th percentile: 137 \
-95th percentile: 202 \
+95th percentile: 201 \
 Mode: 80
 
 ### Stats for misere_50.model
