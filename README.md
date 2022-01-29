@@ -3,7 +3,7 @@
 Finds the optimal strategy for the dice game Despirala.
 Can also evaluate luck and mistakes made during play.
 
-## Rules of the game:
+## Rules of the game
 
 1. At the start of each turn you roll all six dice for free and then gain five goods.
 2. After that you choose to either reroll the dice (for the cost of one good) or choose some combination that you have not attempted before.
@@ -14,7 +14,7 @@ Can also evaluate luck and mistakes made during play.
 7. The six single number combinations (ones, twos, ...) are an exception: you choose when you are done rolling and get points proportional to the number of correct dice.
 8. At the end of the game you get one bonus point per good you have left over.
 
-## List of combinations:
+## List of combinations
 
 | Name | Contents | Points |
 | ---- | ---- | ---- |
@@ -36,7 +36,7 @@ Can also evaluate luck and mistakes made during play.
 Note: for combinations such as pairs/triples/X of a kind, you have to pick which pairs/triples/X you are doing.
 E.g. Three pairs: threes, fives and sixes.
 
-## User interface:
+## User interface
 
 The UI is entirely in the console. It should be fairly intuitive. Moves are written in the format: name of the move, followed by its arguments given as numbers. E.g. "Collect 3", "Two triples 3 5", "Despirala". While collecting the two possible moves are "Continue collecting" and "Stop collecting" (or just "Continue" and "Stop"). Move names are case insensitive.
 
@@ -46,7 +46,7 @@ Stats for model_max are obtained with 100 million tests.
 All othere stats are obtained with a million tests.
 Note that for a perfect model, "expected score" will be equal to the empirical mean.
 
-### Stats for model_max:
+### Stats for max.model
 
 Expected score: 443.616
 
@@ -59,7 +59,7 @@ Stdev: 61.454 \
 95th percentile: 501 \
 Mode: 478
 
-### Stats for model_1000:
+### Stats for 1000.model
 
 Expected score: 443.694
 
@@ -72,7 +72,7 @@ Stdev: 61.519 \
 95th percentile: 501 \
 Mode: 478
 
-### Stats for model_50:
+### Stats for 50.model
 
 Expected score: 444.524
 
@@ -85,7 +85,7 @@ Stdev: 62.156 \
 95th percentile: 500 \
 Mode: 477
 
-### Stats for model_5:
+### Stats for 5.model
 
 Expected score: 457.534
 
@@ -98,7 +98,7 @@ Stdev: 71.143 \
 95th percentile: 496 \
 Mode: 473
 
-### Stats for model_1:
+### Stats for 1.model
 
 Expected score: 497.976
 
