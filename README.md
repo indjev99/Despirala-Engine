@@ -14,6 +14,8 @@ Can also evaluate luck and mistakes made during play.
 7. The six single number combinations (ones, twos, ...) are an exception: you choose when you are done rolling and get points proportional to the number of correct dice.
 8. At the end of the game you get one bonus point per good you have left over.
 
+Under normal play, the goal is to maximize your score. Under misère play, the goal is to minimize your score, but rerolling is not allowed.
+
 ## List of combinations
 
 | Name | Contents | Points |
@@ -38,15 +40,15 @@ E.g. Three pairs: threes, fives and sixes.
 
 ## User interface
 
-The UI is entirely in the console. It should be fairly intuitive. Moves are written in the format: name of the move, followed by its arguments given as numbers. E.g. "Collect 3", "Two triples 3 5", "Despirala". While collecting the two possible moves are "Continue collecting" and "Stop collecting" (or just "Continue" and "Stop"). Move names are case insensitive.
+The UI is entirely in the console. It should be fairly intuitive. Moves are written in the format: name of the move, followed by its arguments given as numbers. E.g. "Collect 3", "Two triples 3 5", "Despirala", "Reroll". While collecting the two possible moves are "Continue collecting" and "Stop collecting" (or just "Continue" and "Stop"). Move names are case insensitive.
 
 ## Performance stats
 
-Stats for model_max are obtained with 100 million tests.
+Stats for normal_exact.model are obtained with 100 million tests.
 All othere stats are obtained with a million tests.
 Note that for a perfect model, "expected score" will be equal to the empirical mean.
 
-### Stats for max.model
+### Stats for normal_exact.model
 
 Expected score: 443.616
 
@@ -59,7 +61,7 @@ Stdev: 61.454 \
 95th percentile: 501 \
 Mode: 478
 
-### Stats for 1000.model
+### Stats for normal_1000.model
 
 Expected score: 443.694
 
@@ -72,7 +74,7 @@ Stdev: 61.519 \
 95th percentile: 501 \
 Mode: 478
 
-### Stats for 50.model
+### Stats for normal_50.model
 
 Expected score: 444.524
 
@@ -85,7 +87,7 @@ Stdev: 62.156 \
 95th percentile: 500 \
 Mode: 477
 
-### Stats for 5.model
+### Stats for normal_5.model
 
 Expected score: 457.534
 
@@ -98,7 +100,7 @@ Stdev: 71.143 \
 95th percentile: 496 \
 Mode: 473
 
-### Stats for 1.model
+### Stats for normal_1.model
 
 Expected score: 497.976
 
@@ -110,3 +112,55 @@ Stdev: 91.886 \
 75th percentile: 402 \
 95th percentile: 478 \
 Mode: 378
+
+### Stats for misere_exact.model
+
+Expected score: 105.975
+
+Mean: 105.938 \
+Stdev: 52.494 \
+5th percentile: 28 \
+25th percentile: 71 \
+50th percentile: 99 \
+75th percentile: 137 \
+95th percentile: 202 \
+Mode: 80
+
+### Stats for misere_50.model
+
+Expected score: 105.857
+
+Mean: 106.105 \
+Stdev: 52.483 \
+5th percentile: 28 \
+25th percentile: 71 \
+50th percentile: 99 \
+75th percentile: 137 \
+95th percentile: 201 \
+Mode: 78
+
+### Stats for misere_5.model
+
+Expected score: 103.404
+
+Mean: 107.960 \
+Stdev: 52.653 \
+5th percentile: 29 \
+25th percentile: 72 \
+50th percentile: 102 \
+75th percentile: 139 \
+95th percentile: 203 \
+Mode: 78
+
+### Stats for misere_1.model
+
+Expected score: 99.6856
+
+Mean: 114.095 \
+Stdev: 53.207 \
+5th percentile: 34 \
+25th percentile: 78 \
+50th percentile: 108 \
+75th percentile: 146 \
+95th percentile: 210 \
+Mode: 85

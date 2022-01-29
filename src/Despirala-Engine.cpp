@@ -36,6 +36,7 @@ const int NUM_MASKS = 1 << NUM_COMBOS;
 const int MAX_GOODS = NUM_COMBOS * GOODS_PER_TURN;
 
 int NUM_TRIALS; // Trials per state
+bool MISERE; // Normal play or misere play
 
 typedef std::array<int, NUM_SIDES> Occurs;
 
@@ -181,6 +182,7 @@ protected:
         std::array<std::pair<int, int>, NUM_SIDES> diceOccursPairs;
         makePairs(diceOccurs, diceOccursPairs);
         std::sort(diceOccursPairs.begin(), diceOccursPairs.end());
+        if (MISERE) std::reverse(diceOccursPairs.begin(), diceOccursPairs.end());
 
         Occurs occurs;
         std::vector<int> args = makeOccurs(templateOccurs, diceOccursPairs, occurs);
@@ -202,6 +204,7 @@ protected:
             occurs[diceOccursPairs[i].second] = templateOccurs[i];
             if (templateOccurs[i] > 0) args.push_back(diceOccursPairs[i].second + 1);
         }
+        std::sort(args.begin(), args.end());
         return args;
     }
     static void makeOccursByArgs(const Occurs& templateOccurs, const std::vector<int>& args, Occurs& occurs)
@@ -235,19 +238,20 @@ protected:
         std::array<std::pair<int, int>, NUM_SIDES> diceOccursPairs;
         makePairs(diceOccurs, diceOccursPairs);
         std::sort(diceOccursPairs.begin(), diceOccursPairs.end());
+        if (MISERE) std::reverse(diceOccursPairs.begin(), diceOccursPairs.end());
 
         Occurs currTemplate(templateOccurs);
 
-        int maxPoints = -1;
+        int bestPoints = !MISERE ? -INF : INF;
         std::vector<Target> ts;
         Occurs occurs;
         do
         {
             std::vector<int> args = makeOccurs(currTemplate, diceOccursPairs, occurs);
             int currPoints = evalOccurs(occurs);
-            if (currPoints > maxPoints)
+            if (!MISERE ? currPoints > bestPoints : currPoints < bestPoints)
             {
-                maxPoints = currPoints;
+                bestPoints = currPoints;
                 ts.push_back(Target(args, currPoints, occurs));
             }
         }
@@ -543,7 +547,7 @@ Move getMoveColl(int free, int goods, int num, int left)
     if (goods > 0 && left)
     {
         Move option = Move(M_CONT_COLL, getScoreCollContinue(free, goods, num, left));
-        best = std::max(best, option);
+        best = !MISERE ? std::max(best, option) : std::min(best, option);
     }
     return best;
 }
@@ -581,7 +585,7 @@ double getMoveScore(int free, int goods, const Occurs& occurs, int extraDice, in
 
 Move getMove(int free, int goods, const Occurs& diceOccurs)
 {
-    Move best = Move(M_ERROR, -INF);
+    Move best = Move(M_ERROR, !MISERE ? -INF : INF);
     for (int i = 0; i < NUM_COMBOS; ++i)
     {
         if (!isFree(free, i)) continue;
@@ -591,7 +595,7 @@ Move getMove(int free, int goods, const Occurs& diceOccurs)
         {
             int curr = diceOccurs[num - 1];
             Move option = Move(i, {num}, num * curr + getScoreColl(newFree, goods, num, NUM_DICE - curr));
-            best = std::max(best, option);
+            best = !MISERE ? std::max(best, option) : std::min(best, option);
         }
         else
         {
@@ -602,14 +606,14 @@ Move getMove(int free, int goods, const Occurs& diceOccurs)
                 int extraDice = NUM_DICE - diceInOcc(newOccurs);
                 remOcc(newOccurs, diceOccurs);
                 Move option = Move(i, t.args, getMoveScore(newFree, goods, newOccurs, extraDice, t.points));
-                best = std::max(best, option);
+                best = !MISERE ? std::max(best, option) : std::min(best, option);
             }
         }
     }
-    if (goods > 0)
+    if (goods > 0 && !MISERE)
     {
         Move option = Move(M_REROLL, getScoreCont(free, goods - 1));
-        best = std::max(best, option);
+        best = !MISERE ? std::max(best, option) : std::min(best, option);
     }
     return best;
 }
@@ -774,17 +778,18 @@ struct State
     void updateExpScore(double newExpScore, int reason, const std::string& bestMvName = "")
     {
         newExpScore += score;
+        int mult = !MISERE ? 1 : -1;
         double delta = newExpScore - expScore;
         bool print = reason == R_LUCK || fabs(delta) > IO_EPS;
         if (print)
         {
-            if (reason == R_LUCK && delta > IO_EPS) std::cout << "Good luck: ";
-            else if (reason == R_LUCK && delta < -IO_EPS) std::cout << "Bad luck: ";
+            if (reason == R_LUCK && mult * delta > IO_EPS) std::cout << "Good luck: ";
+            else if (reason == R_LUCK && mult * delta < -IO_EPS) std::cout << "Bad luck: ";
             else if (reason == R_LUCK && fabs(delta) <= IO_EPS) std::cout << "Neutral luck: ";
-            else if (reason == R_MISTAKE && -delta < 1) std::cout << "Inaccuracy: ";
-            else if (reason == R_MISTAKE && -delta < 4) std::cout << "Mistake: ";
-            else if (reason == R_MISTAKE && -delta < 10) std::cout << "Blunder: ";
-            else if (reason == R_MISTAKE && -delta >= 10) std::cout << "Massive blunder: ";
+            else if (reason == R_MISTAKE && -mult * delta < 1) std::cout << "Inaccuracy: ";
+            else if (reason == R_MISTAKE && -mult * delta < 4) std::cout << "Mistake: ";
+            else if (reason == R_MISTAKE && -mult * delta < 10) std::cout << "Blunder: ";
+            else if (reason == R_MISTAKE && -mult * delta >= 10) std::cout << "Massive blunder: ";
             else if (reason == R_NONE) std::cout << "(Warning) No reason: ";
             else std::cout << "(Error) Invalid reason " << reason << ": ";
             std::cout << std::fixed << std::setprecision(IO_PRECISION) << delta << std::endl;
@@ -902,12 +907,12 @@ double findExpectedRank(std::vector<int>& distr, std::vector<int>& othersCumDist
 
 Move getCompetitiveMoveColl(std::vector<State>& states, int num, int left, Config& config)
 {
-    return Move(M_ERROR, -INF);
+    return Move(M_ERROR, !MISERE ? -INF : INF);
 }
 
 Move getCompetitiveMove(std::vector<State>& states, const Occurs& diceOccurs, Config& config)
 {
-    return Move(M_ERROR, -INF);
+    return Move(M_ERROR, !MISERE ? -INF : INF);
 }
 
 void printOcc(const Occurs& occurs, Config& config, bool useConfig)
@@ -1180,7 +1185,7 @@ void simTurn(std::vector<State>& states, Config& config)
         break;
 
     case M_REROLL:
-        if (s.goods > 0)
+        if (s.goods > 0 && !MISERE)
         {
             if (config.logMode == LOG_WRITE) config.logOut << mv.toString() << std::endl;
 
@@ -1347,7 +1352,7 @@ Stats findStats(int n)
 
 std::string modelName()
 {
-    return (NUM_TRIALS > 0 ? std::to_string(NUM_TRIALS) : "max") + ".model";
+    return (!MISERE ? "normal_" : "misere_") + (NUM_TRIALS > 0 ? std::to_string(NUM_TRIALS) : "exact") + ".model";
 }
 
 void storeModel()
@@ -1614,6 +1619,9 @@ void shell()
 int main()
 {
     generator.seed(time(nullptr));
+
+    std::cout << "Normal play or misere play (0 / 1): ";
+    std::cin >> MISERE;
 
     std::cout << "Number of trails per state or 0 for exact model (which costs " << STARTS_ORD_CODES[NUM_DICE + 1] - STARTS_ORD_CODES[NUM_DICE] << " trials per state): ";
     std::cin >> NUM_TRIALS;
