@@ -832,10 +832,7 @@ struct Config
         numPlayers(numPlayers),
         verbose(verbose),
         evalLM(evalLM),
-        logMode(logMode),
-        manualRollsAll(vectorOrDefault(manualRollsAll)),
-        manualMovesAll(vectorOrDefault(manualMovesAll)),
-        competitiveAll(vectorOrDefault(competitiveAll))
+        logMode(logMode)
     {
         if (logMode == LOG_WRITE) logOut.open(logName.c_str());
         else if (logMode == LOG_READ) logIn.open(logName.c_str());
@@ -845,6 +842,18 @@ struct Config
 
         if (logMode == LOG_WRITE) logOut << (this->numPlayers) << std::endl;
         else if (logMode == LOG_READ) logIn >> (this->numPlayers);
+
+        this->manualRollsAll = vectorOrDefault(manualRollsAll);
+        this->manualMovesAll = vectorOrDefault(manualMovesAll);
+        this->competitiveAll = vectorOrDefault(competitiveAll);
+
+        for (int player = 0; player < this->numPlayers; ++player)
+        {
+            assert(logMode != LOG_READ || !this->manualRollsAll[player]);
+            assert(logMode != LOG_READ || !this->manualMovesAll[player]);
+            assert(logMode != LOG_READ || !this->competitiveAll[player]);
+            assert(!this->manualMovesAll[player] || !this->competitiveAll[player]);
+        }
     } 
 
     void setPlayer(int player)
@@ -1098,7 +1107,7 @@ void simRegMove(std::vector<State>& states, Occurs& occurs, int extraDice, int r
 
     if (!instaDone && s.goods > 0 && config.logMode == LOG_WRITE) config.logOut << (won ? rolls : -1) << std::endl;
 
-    if (!config.manualRolls && config.verbose)
+    if (!instaDone && !config.manualRolls && config.verbose)
     {
         if (won) std::cout << "Took " << rolls << " rolls to complete the combination. " << std::endl;
         else std::cout << "Didn't complete the combination." << std::endl;
