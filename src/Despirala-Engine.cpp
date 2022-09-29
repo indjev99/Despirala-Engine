@@ -158,11 +158,12 @@ struct PermCombo : Combo
         {
             code = code * (NUM_DICE + 1) + diceOccur;
         }
-        if (cache.find(code) == cache.end())
+        auto it = cache.find(code);
+        if (it == cache.end())
         {
-            cache[code] = rawGetTargets(diceOccurs);
+            it = cache.insert({code, rawGetTargets(diceOccurs)}).first;
         }
-        return cache[code];
+        return it->second;
     }
     Target getTargetByArgs(const std::vector<int>& args) const
     {
@@ -494,14 +495,17 @@ struct Move
     std::vector<int> args;
     double score;
 
-    Move(int id, const std::vector<int>& args, double score):
+    Move(int id, const std::vector<int>& args = {}):
         id(id),
         args(args),
-        score(score) {}
-    
-    Move(int id, double score):
-        Move(id, {}, score) {}
-    
+        score(!MISERE ? -INF : INF) {}
+
+    Move(int id, int arg):
+        Move(id, std::vector<int>(1, arg)) {}
+
+    Move():
+        Move(M_ERROR) {}
+
     Move(const std::string& name, const std::vector<int>& args);
     
     std::string toString() const;
@@ -509,7 +513,7 @@ struct Move
 
 bool operator<(const Move& a, const Move& b)
 {
-    return a.score < b.score;
+    return !MISERE ? a.score < b.score : a.score > b.score;
 }
 
 bool isFree(int free, int idx)
@@ -522,42 +526,71 @@ int setUsed(int free, int idx)
     return free - (1 << idx);
 }
 
+std::vector<Move> getMoveOptions(int free, int goods, const Occurs& diceOccurs)
+{
+    std::vector<Move> options;
+    for (int i = 0; i < NUM_COMBOS; ++i)
+    {
+        if (!isFree(free, i)) continue;
+        int num = combos[i]->getCollectNumber();
+        if (num > 0)
+        {
+            options.emplace_back(i, num);
+        }
+        else
+        {
+            std::vector<Target> ts = combos[i]->getTargets(diceOccurs);
+            for (const Target& t : ts)
+            {
+                options.emplace_back(i, t.args);
+            }
+        }
+    }
+    if (goods > 0 && !MISERE)
+    {
+        options.emplace_back(M_REROLL);
+    }
+    return options;
+}
+
 bool isFound[NUM_MASKS][MAX_GOODS + 1];
 double score[NUM_MASKS][MAX_GOODS + 1];
 bool isFoundColl[NUM_MASKS][MAX_GOODS + 1][NUM_SIDES][NUM_DICE + 1];
 double collScore[NUM_MASKS][MAX_GOODS + 1][NUM_SIDES][NUM_DICE + 1];
 
 double getScore(int free, int goods);
-double getScoreCont(int free, int goods);
-double getScoreColl(int free, int goods, int num, int left);
+double getContScore(int free, int goods);
+double getCollScore(int free, int goods, int num, int left);
 
-double getScoreCollContinue(int free, int goods, int num, int left)
+double getCollContScore(int free, int goods, int num, int left)
 {
     double sc = 0;
     for (int i = 0 ; i <= left; ++i)
     {
-        sc += leftDistr[left][i] * ((left - i) * num + getScoreColl(free, goods - 1, num, i));
+        sc += leftDistr[left][i] * ((left - i) * num + getCollScore(free, goods - 1, num, i));
     }
     return sc;
 }
 
-Move getMoveColl(int free, int goods, int num, int left)
+Move getCollMove(int free, int goods, int num, int left)
 {
-    Move best = Move(M_STOP_COLL, getScore(free, goods));
+    Move best = Move(M_STOP_COLL);
+    best.score = getScore(free, goods);
     if (goods > 0 && left)
     {
-        Move option = Move(M_CONT_COLL, getScoreCollContinue(free, goods, num, left));
-        best = !MISERE ? std::max(best, option) : std::min(best, option);
+        Move option = Move(M_CONT_COLL);
+        option.score = getCollContScore(free, goods, num, left);
+        best = std::max(best, option);
     }
     return best;
 }
 
-double getScoreColl(int free, int goods, int num, int left)
+double getCollScore(int free, int goods, int num, int left)
 {
     if (!isFoundColl[free][goods][num][left])
     {
         isFoundColl[free][goods][num][left] = true;
-        collScore[free][goods][num][left] = getMoveColl(free, goods, num, left).score;
+        collScore[free][goods][num][left] = getCollMove(free, goods, num, left).score;
     }
     return collScore[free][goods][num][left];
 }
@@ -585,42 +618,40 @@ double getMoveScore(int free, int goods, const Occurs& occurs, int extraDice, in
 
 Move getMove(int free, int goods, const Occurs& diceOccurs)
 {
-    Move best = Move(M_ERROR, !MISERE ? -INF : INF);
-    for (int i = 0; i < NUM_COMBOS; ++i)
+    Move best;
+    for (Move& option : getMoveOptions(free, goods, diceOccurs))
     {
-        if (!isFree(free, i)) continue;
-        int newFree = setUsed(free, i);
-        int num = combos[i]->getCollectNumber();
-        if (num > 0)
+        int id = option.id;
+        int newFree = id != M_REROLL ? setUsed(free, id) : free;
+        int num = id != M_REROLL ? combos[id]->getCollectNumber() : 0;
+
+        if (id == M_REROLL)
+        {
+            option.score = getContScore(free, goods - 1);
+        }
+        else if (num > 0)
         {
             int curr = diceOccurs[num - 1];
-            Move option = Move(i, {num}, num * curr + getScoreColl(newFree, goods, num, NUM_DICE - curr));
-            best = !MISERE ? std::max(best, option) : std::min(best, option);
+            option.score = num * curr + getCollScore(newFree, goods, num, NUM_DICE - curr);
         }
         else
         {
-            std::vector<Target> ts = combos[i]->getTargets(diceOccurs);
-            for (const Target& t : ts)
-            {
-                Occurs newOccurs = t.occurs;
-                int extraDice = NUM_DICE - diceInOcc(newOccurs);
-                remOcc(newOccurs, diceOccurs);
-                Move option = Move(i, t.args, getMoveScore(newFree, goods, newOccurs, extraDice, t.points));
-                best = !MISERE ? std::max(best, option) : std::min(best, option);
-            }
+            Target t = combos[id]->getTargetByArgs(option.args);
+            Occurs newOccurs = t.occurs;
+            int extraDice = NUM_DICE - diceInOcc(newOccurs);
+            remOcc(newOccurs, diceOccurs);
+            option.score = getMoveScore(newFree, goods, newOccurs, extraDice, t.points);
         }
+
+        best = std::max(best, option);
     }
-    if (goods > 0 && !MISERE)
-    {
-        Move option = Move(M_REROLL, getScoreCont(free, goods - 1));
-        best = !MISERE ? std::max(best, option) : std::min(best, option);
-    }
+
     return best;
 }
 
 int statesVisCnt = 0;
 
-double getScoreCont(int free, int goods)
+double getContScore(int free, int goods)
 {
     if (isFound[free][goods]) return score[free][goods];
     isFound[free][goods] = true;
@@ -647,13 +678,13 @@ double getScoreCont(int free, int goods)
         }
     }
     ++statesVisCnt;
-    if (statesVisCnt % 10000 == 0) std::cout << ".";
+    if (statesVisCnt % 10000 == 0) std::cout << "." << std::flush;
     return score[free][goods];
 }
 
 double getScore(int free, int goods)
 {
-    return free ? getScoreCont(free, goods + GOODS_PER_TURN) : getScoreCont(free, goods);
+    return free ? getContScore(free, goods + GOODS_PER_TURN) : getContScore(free, goods);
 }
 
 double getInitialScore()
@@ -704,7 +735,7 @@ std::string Move::toString() const
 }
 
 Move::Move(const std::string& name, const std::vector<int>& args):
-    Move(M_ERROR, args, 0)
+    Move(M_ERROR, args)
 {
     std::unordered_set<int> freeArgs;
     for (int i = 0; i < NUM_SIDES; ++i)
@@ -825,15 +856,15 @@ struct Config
 
     std::vector<bool> manualRollsAll;
     std::vector<bool> manualMovesAll;
-    std::vector<bool> competitiveAll;
+    std::vector<int> competitiveAll;
 
     int player;
-    int manualRolls;
-    int manualMoves;
+    bool manualRolls;
+    bool manualMoves;
     int competitive;
 
     Config(int numPlayers = 1, bool verbose = false, bool evalLM = false, int logMode = LOG_NONE, const std::string logName = "",
-           const std::vector<bool>& manualRollsAll = {}, const std::vector<bool>& manualMovesAll = {}, const std::vector<bool>& competitiveAll = {}):
+           const std::vector<bool>& manualRollsAll = {}, const std::vector<bool>& manualMovesAll = {}, const std::vector<int>& competitiveAll = {}):
         numPlayers(numPlayers),
         verbose(verbose),
         evalLM(evalLM),
@@ -859,7 +890,9 @@ struct Config
             assert(logMode != LOG_READ || !this->competitiveAll[player]);
             assert(!this->manualMovesAll[player] || !this->competitiveAll[player]);
         }
-    } 
+
+        setPlayer(0);
+    }
 
     void setPlayer(int player)
     {
@@ -876,6 +909,14 @@ private:
         assert(vec.empty() || (int) vec.size() == numPlayers);
 
         if (vec.empty()) return std::vector<bool>(numPlayers, false);
+        else return vec;
+    }
+
+    std::vector<int> vectorOrDefault(std::vector<int> vec)
+    {
+        assert(vec.empty() || (int) vec.size() == numPlayers);
+
+        if (vec.empty()) return std::vector<int>(numPlayers, 0);
         else return vec;
     }
 };
@@ -905,14 +946,132 @@ double findExpectedRank(std::vector<int>& distr, std::vector<int>& othersCumDist
     return (double) sum / combs;
 }
 
-Move getCompetitiveMoveColl(std::vector<State>& states, int num, int left, Config& config)
+void addToDistr(int val, std::vector<int>& distr)
 {
-    return Move(M_ERROR, !MISERE ? -INF : INF);
+    while (val >= (int) distr.size()) distr.push_back(0);
+    ++distr[val];
 }
 
-Move getCompetitiveMove(std::vector<State>& states, const Occurs& diceOccurs, Config& config)
+void simTurn(std::vector<State>& states, Config& config);
+void simColl(std::vector<State>& states, int num, int collected, Config& config);
+void simMove(State& s, Occurs& occurs, int extraDice, int reward, Config& config);
+
+int miniSimGame(const State& state)
 {
-    return Move(M_ERROR, !MISERE ? -INF : INF);
+    Config config;
+    std::vector<State> states(1, state);
+
+    while (states[0].free)
+    {
+        simTurn(states, config);
+    }
+
+    return states[0].score + states[0].goods * POINTS_PER_GOOD;
+}
+
+int miniSimGameReroll(const State& state)
+{
+    State newState = state;
+    newState.goods -= 1 + GOODS_PER_TURN;
+    return miniSimGame(newState);
+}
+
+int miniSimGameColl(const State& state, int num, int collected)
+{
+    Config config;
+    std::vector<State> states(1, state);
+    simColl(states, num, collected, config);
+    return miniSimGame(states[0]);
+}
+
+int miniSimGameMove(const State& state, Occurs& occurs, int extraDice, int reward)
+{
+    Config config;
+    State newState = state;
+    simMove(newState, occurs, extraDice, reward, config);
+    return miniSimGame(newState);
+}
+
+std::vector<int> findOthersCumDistr(const std::vector<State>& states, const Config& config)
+{
+    int numSims = config.competitive;
+    std::vector<int> othersCumDistr;
+
+    for (int other = 0; other < config.numPlayers; ++other)
+    {
+        if (other == config.player) continue;
+
+        for (int i = 0; i < numSims; ++i)
+        {
+            addToDistr(miniSimGame(states[other]), othersCumDistr);
+        }
+    }
+
+    for (int i = 1; i < (int) othersCumDistr.size(); ++i)
+    {
+        othersCumDistr[i] += othersCumDistr[i - 1];
+    }
+
+    return othersCumDistr;
+}
+
+Move getCompetitiveMoveColl(const std::vector<State>& states, int num, int left, const Config& config)
+{
+    std::vector<int> othersCumDistr = findOthersCumDistr(states, config);
+
+    return getCollMove(states[config.player].free, states[config.player].goods, num, left);
+}
+
+Move getCompetitiveMove(const std::vector<State>& states, const Occurs& diceOccurs, const Config& config)
+{
+    std::vector<int> othersCumDistr = findOthersCumDistr(states, config);
+
+    int numSims = config.competitive;
+    std::vector<int> distr;
+
+    const State& state = states[config.player];
+    int free = state.free;
+    int goods = state.goods;
+
+    Move best;
+    for (Move& option : getMoveOptions(free, goods, diceOccurs))
+    {
+        int id = option.id;
+        State newState = state;
+        newState.free = id != M_REROLL ? setUsed(free, id) : free;
+        int num = id != M_REROLL ? combos[id]->getCollectNumber() : 0;
+
+        distr.clear();
+
+        for (int i = 0; i < numSims; ++i)
+        {
+            int res = 0;
+
+            if (id == M_REROLL)
+            {
+                res = miniSimGameReroll(newState);
+            }
+            else if (num > 0)
+            {
+                res = miniSimGameColl(newState, num, diceOccurs[num - 1]);
+            }
+            else
+            {
+                Target t = combos[id]->getTargetByArgs(option.args);
+                Occurs newOccurs = t.occurs;
+                int extraDice = NUM_DICE - diceInOcc(newOccurs);
+                remOcc(newOccurs, diceOccurs);
+                res = miniSimGameMove(newState, newOccurs, extraDice, t.points);
+            }
+
+            addToDistr(res, distr);
+        }
+
+        option.score = findExpectedRank(distr, othersCumDistr);
+        best = std::max(best, option);
+    }
+
+    return best;
 }
 
 void printOcc(const Occurs& occurs, Config& config, bool useConfig)
@@ -1004,7 +1163,7 @@ bool isDone(const Occurs& occurs)
     return std::all_of(occurs.begin(), occurs.end(), [](int n) {return n == 0;});
 }
 
-void simCollMoves(std::vector<State>& states, int num, int collected, Config& config)
+void simColl(std::vector<State>& states, int num, int collected, Config& config)
 {
     State& s = states[config.player];
 
@@ -1014,7 +1173,7 @@ void simCollMoves(std::vector<State>& states, int num, int collected, Config& co
     {
         cont = false;
         int left = NUM_DICE - collected;
-        Move bestMv = getMoveColl(s.free, s.goods, num, left);
+        Move bestMv = getCollMove(s.free, s.goods, num, left);
 
         if (config.evalLM) s.updateExpScore(num * collected + bestMv.score, first ? R_NONE : R_LUCK);
         first = false;
@@ -1039,7 +1198,7 @@ void simCollMoves(std::vector<State>& states, int num, int collected, Config& co
             {
                 if (config.logMode == LOG_WRITE) config.logOut << mv.toString() << std::endl;
 
-                if (config.evalLM) s.updateExpScore(num * collected + getScoreCollContinue(s.free, s.goods, num, left), R_MISTAKE);
+                if (config.evalLM) s.updateExpScore(num * collected + getCollContScore(s.free, s.goods, num, left), R_MISTAKE);
                 cont = true;
                 --s.goods;
                 int newHits = 0;
@@ -1085,10 +1244,8 @@ void simCollMoves(std::vector<State>& states, int num, int collected, Config& co
     }
 }
 
-void simRegMove(std::vector<State>& states, Occurs& occurs, int extraDice, int reward, Config& config)
+void simMove(State& s, Occurs& occurs, int extraDice, int reward, Config& config)
 {
-    State& s = states[config.player];
-
     bool instaDone = isDone(occurs);
     int rolls = 0;
     bool won;
@@ -1132,7 +1289,6 @@ void simRegMove(std::vector<State>& states, Occurs& occurs, int extraDice, int r
 void simTurn(std::vector<State>& states, Config& config)
 {
     State& s = states[config.player];
-
     Occurs diceOccurs;
 
     if (config.verbose)
@@ -1190,7 +1346,7 @@ void simTurn(std::vector<State>& states, Config& config)
             if (config.logMode == LOG_WRITE) config.logOut << mv.toString() << std::endl;
 
             --s.goods;
-            if (config.evalLM) s.updateExpScore(getScoreCont(s.free, s.goods), R_MISTAKE, bestMv.toString());
+            if (config.evalLM) s.updateExpScore(getContScore(s.free, s.goods), R_MISTAKE, bestMv.toString());
             goto diceRoll;
         }
         else s.fail = true;
@@ -1206,8 +1362,8 @@ void simTurn(std::vector<State>& states, Config& config)
             if (num > 0)
             {
                 int collected = diceOccurs[num - 1];
-                if (config.evalLM) s.updateExpScore(num * collected + getScoreColl(s.free, s.goods, num, NUM_DICE - collected), R_MISTAKE, bestMv.toString());
-                simCollMoves(states, num, collected, config);
+                if (config.evalLM) s.updateExpScore(num * collected + getCollScore(s.free, s.goods, num, NUM_DICE - collected), R_MISTAKE, bestMv.toString());
+                simColl(states, num, collected, config);
             }
             else
             {
@@ -1216,7 +1372,7 @@ void simTurn(std::vector<State>& states, Config& config)
                 int extraDice = NUM_DICE - diceInOcc(newOccurs);
                 remOcc(newOccurs, diceOccurs);
                 if (config.evalLM) s.updateExpScore(getMoveScore(s.free, s.goods, newOccurs, extraDice, t.points), R_MISTAKE, bestMv.toString());
-                simRegMove(states, newOccurs, extraDice, t.points, config);
+                simMove(s, newOccurs, extraDice, t.points, config);
             }
         }
         else s.fail = true;
@@ -1237,6 +1393,11 @@ struct Result
     int score = 0;
     int rank = 0;
 };
+
+double displayRank(int rank, const Config& config)
+{
+    return (1 + config.numPlayers - rank) / 2.0;
+}
 
 std::vector<Result> simGame(Config& config)
 {
@@ -1267,7 +1428,8 @@ std::vector<Result> simGame(Config& config)
         for (int other = 0; other < config.numPlayers; ++other)
         {
             if (other == player) continue;
-            results[player].rank += states[other].score < states[player].score ? 1 : -1;
+            if (states[other].score < states[player].score) ++results[player].rank;
+            else if (states[other].score > states[player].score) --results[player].rank;
         }
     }
 
@@ -1279,7 +1441,7 @@ std::vector<Result> simGame(Config& config)
         {
             if (config.numPlayers > 1) std::cout << "Player " << player + 1 << std::endl;
             std::cout << "Final score: " << results[player].score << std::endl;
-            if (config.numPlayers > 1) std::cout << "Final rank: " << results[player].rank << std::endl;
+            if (config.numPlayers > 1) std::cout << "Final rank: " << displayRank(results[player].rank, config) << std::endl;
         }
 
         if (config.evalLM)
@@ -1295,37 +1457,41 @@ struct Stats
 {
     double mean = 0;
     double stdev = 0;
-    int perc5 = 0;
-    int perc25 = 0;
-    int perc50 = 0;
-    int perc75 = 0;
-    int perc95 = 0;
-    std::vector<int> modes;
+    double perc5 = 0;
+    double perc25 = 0;
+    double perc50 = 0;
+    double perc75 = 0;
+    double perc95 = 0;
+    std::vector<double> modes;
     std::vector<int> distr;
 };
 
-Stats findStats(int n)
+Stats findStats(int n, Config& config, int povPlayer = 0, bool useRank = false)
 {
     Stats stats;
 
+    auto getVal = [&] (int r) {
+        return !useRank ? r : displayRank(r - config.numPlayers, config);
+    };
+
     for (int i = 0; i < n; ++i)
     {
-        Config config;
-        int r = simGame(config)[0].score;
-
-        while (r >= (int) stats.distr.size()) stats.distr.push_back(0);
-        ++stats.distr[r];
+        auto results = simGame(config);
+        int r = !useRank ? results[povPlayer].score : results[povPlayer].rank + config.numPlayers;
+        addToDistr(r, stats.distr);
     }
 
-    long long sum = 0;
-    long long sqSum = 0;
+    double sum = 0;
+    double sqSum = 0;
     int modeCnt = 0;
     int cumDistr = 0;
 
     for (int r = 0; r < (int) stats.distr.size(); ++r)
     {
-        sum += (long long) stats.distr[r] * r;
-        sqSum += (long long) stats.distr[r] * r * r;
+        double val = getVal(r);
+
+        sum += (long long) stats.distr[r] * val;
+        sqSum += (long long) stats.distr[r] * val * val;
 
         if (stats.distr[r] > modeCnt)
         {
@@ -1333,13 +1499,13 @@ Stats findStats(int n)
             modeCnt = stats.distr[r];
         }
 
-        if (stats.distr[r] == modeCnt) stats.modes.push_back(r);
+        if (stats.distr[r] == modeCnt) stats.modes.push_back(val);
 
-        if (cumDistr < n / 20) stats.perc5 = r;
-        if (cumDistr < n / 4) stats.perc25 = r;
-        if (cumDistr < n / 2) stats.perc50 = r;
-        if (cumDistr < 3 * n / 4) stats.perc75 = r;
-        if (cumDistr < 19 * n / 20) stats.perc95 = r;
+        if (cumDistr < n / 20) stats.perc5 = val;
+        if (cumDistr < n / 4) stats.perc25 = val;
+        if (cumDistr < n / 2) stats.perc50 = val;
+        if (cumDistr < 3 * n / 4) stats.perc75 = val;
+        if (cumDistr < 19 * n / 20) stats.perc95 = val;
 
         cumDistr += stats.distr[r];
     }
@@ -1490,11 +1656,7 @@ void shell()
 
         if (cmd == "play")
         {
-            int numPlayers = 0;
-            std::vector<bool> manualRollsAll;
-            std::vector<bool> manualMovesAll;
-            std::vector<bool> competitiveAll;
-            bool evalLM;
+            int numPlayers;
 
             std::cout << "Number of players: ";
             while (numPlayers <= 0)
@@ -1502,31 +1664,32 @@ void shell()
                 std::cin >> numPlayers;
             }
 
+            std::vector<bool> manualRollsAll(numPlayers);
+            std::vector<bool> manualMovesAll(numPlayers);
+            std::vector<int> competitiveAll(numPlayers);
+            bool evalLM;
+
             for (int player = 0; player < numPlayers; ++player)
             {
-                bool manualRolls, manualMoves, competitive;
+                bool temp;
 
                 if (numPlayers > 1) std::cout << "Player " << player + 1 << ": ";
                 std::cout << "Manual rolls (0 / 1): ";
-                std::cin >> manualRolls;
+                std::cin >> temp;
+                manualRollsAll[player] = temp;
 
                 if (numPlayers > 1) std::cout << "Player " << player + 1 << ": ";
                 std::cout << "Manual moves (0 / 1): ";
-                std::cin >> manualMoves;
+                std::cin >> temp;
+                manualMovesAll[player] = temp;
 
-                // if (!manualMoves)
-                // {
-                //     if (numPlayers > 1) std::cout << "Player " << player + 1 << ": ";
-                //     std::cout << "Competitive (0 / 1): ";
-                //     std::cin >> competitive;
-                // }
-                // else competitive = false;
-
-                competitive = false;
-
-                manualRollsAll.push_back(manualRolls);
-                manualMovesAll.push_back(manualMoves);
-                competitiveAll.push_back(competitive);
+                if (!manualMovesAll[player])
+                {
+                    if (numPlayers > 1) std::cout << "Player " << player + 1 << ": ";
+                    std::cout << "Competitive (0 / 1+): ";
+                    std::cin >> competitiveAll[player];
+                }
+                else competitiveAll[player] = 0;
             }
 
             std::cout << "Evaluate luck and mistakes (0 / 1): ";
@@ -1555,6 +1718,47 @@ void shell()
         }
         else if (cmd == "test")
         {
+            int numPlayers = 0;
+            int povPlayer = -1;
+            bool useRank;
+
+            std::cout << "Number of players: ";
+            while (numPlayers <= 0)
+            {
+                std::cin >> numPlayers;
+            }
+
+            std::vector<int> competitiveAll;
+
+            if (numPlayers == 1)
+            {
+                povPlayer = 0;
+                useRank = false;
+            }
+            else
+            {
+                std::cout << "PoV player: ";
+                while (povPlayer < 0 || povPlayer >= numPlayers)
+                {
+                    std::cin >> povPlayer;
+                    --povPlayer;
+                }
+
+                std::cout << "Score or rank (0 / 1): ";
+                std::cin >> useRank;
+
+                competitiveAll.resize(numPlayers);
+
+                for (int player = 0; player < numPlayers; ++player)
+                {
+                    if (numPlayers > 1) std::cout << "Player " << player + 1 << ": ";
+                    std::cout << "Competitive (0 / 1+): ";
+                    std::cin >> competitiveAll[player];
+                }
+            }
+
+            Config config(numPlayers, false, false, LOG_NONE, "", {}, {}, competitiveAll);
+
             int numTests;
             bool exportToFile;
             std::string fileName;
@@ -1571,7 +1775,7 @@ void shell()
                 std::cin >> fileName;
             }
 
-            Stats stats = findStats(numTests);
+            Stats stats = findStats(numTests, config, povPlayer, useRank);
 
             std::cout << std::endl;
             std::cout << "Mean: " << std::fixed << std::setprecision(IO_PRECISION) << stats.mean << std::endl;
