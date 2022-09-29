@@ -1486,7 +1486,8 @@ Stats findStats(int n, Config& config, int povPlayer = 0, bool useRank = false)
         return !useRank ? r : displayRank(r - config.numPlayers, config);
     };
 
-    double runSum = 0;
+    double runSumScore = 0;
+    double runSumRank = 0;
 
     for (int i = 0; i < n; ++i)
     {
@@ -1496,8 +1497,9 @@ Stats findStats(int n, Config& config, int povPlayer = 0, bool useRank = false)
 
         if (PRINT_RUN_MEAN)
         {
-            runSum += getVal(r);
-            std::cout << i + 1 << ": " << runSum / (i + 1) << std::endl;
+            runSumScore += results[povPlayer].score;
+            runSumRank += displayRank(results[povPlayer].rank, config);
+            std::cout << i + 1 << ": " << runSumScore / (i + 1) << " " << runSumRank / (i + 1) << std::endl;
         }
     }
 
