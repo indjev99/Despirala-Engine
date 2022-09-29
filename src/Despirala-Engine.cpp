@@ -1068,6 +1068,7 @@ Move getCompetitiveMove(const std::vector<State>& states, const Occurs& diceOccu
         }
 
         option.score = findExpectedRank(distr, othersCumDistr);
+
         best = std::max(best, option);
     }
 
@@ -1136,7 +1137,7 @@ Move chooseMove(Config& config)
 
 int chooseNumRolls(Config& config)
 {
-    if (config.logMode != LOG_READ) std::cout << "Number of rolls to complete the combination (-1 for if you didn't): ";
+    if (config.logMode != LOG_READ) std::cout << "Number of rolls to complete the combination (-1 for if you did not): ";
     std::istream& in = config.logMode == LOG_READ ? config.logIn : std::cin;
 
     int rolls;
@@ -1272,7 +1273,7 @@ void simMove(State& s, Occurs& occurs, int extraDice, int reward, Config& config
     if (!instaDone && !config.manualRolls && config.verbose)
     {
         if (won) std::cout << "Took " << rolls << " rolls to complete the combination. " << std::endl;
-        else std::cout << "Didn't complete the combination." << std::endl;
+        else std::cout << "Did not complete the combination." << std::endl;
     }
 
     s.goods -= rolls;
@@ -1656,7 +1657,7 @@ void shell()
 
         if (cmd == "play")
         {
-            int numPlayers;
+            int numPlayers = 0;
 
             std::cout << "Number of players: ";
             while (numPlayers <= 0)
@@ -1671,7 +1672,7 @@ void shell()
 
             for (int player = 0; player < numPlayers; ++player)
             {
-                bool temp;
+                int temp;
 
                 if (numPlayers > 1) std::cout << "Player " << player + 1 << ": ";
                 std::cout << "Manual rolls (0 / 1): ";
@@ -1683,7 +1684,7 @@ void shell()
                 std::cin >> temp;
                 manualMovesAll[player] = temp;
 
-                if (!manualMovesAll[player])
+                if (numPlayers > 1 && !manualMovesAll[player])
                 {
                     if (numPlayers > 1) std::cout << "Player " << player + 1 << ": ";
                     std::cout << "Competitive (0 / 1+): ";
