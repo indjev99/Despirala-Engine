@@ -960,12 +960,10 @@ int miniSimGame(const State& state)
 {
     Config config;
     std::vector<State> states(1, state);
-
     while (states[0].free)
     {
         simTurn(states, config);
     }
-
     return states[0].score + states[0].goods * POINTS_PER_GOOD;
 }
 
@@ -993,67 +991,21 @@ int miniSimGameMove(const State& state, const Occurs& occurs, int extraDice, int
     return miniSimGame(newState);
 }
 
-void fixMean(std::vector<int>& distr, double expected)
-{
-    int maxVal = distr.size();
-
-    int cnt = 0;
-    double mean = 0;
-    for (int i = 0; i < maxVal; ++i)
-    {
-        cnt += distr[i];
-        mean += distr[i] * i;
-    }
-    mean /= cnt;
-
-    int shift = std::round(expected - mean);
-
-    if (shift > 0)
-    {
-        distr.resize(maxVal + shift, 0);
-        for (int i = maxVal - 1; i >= 0 ; --i)
-        {
-            distr[i + shift] = distr[i];
-        }
-        for (int i = 0; i < shift; ++i)
-        {
-            distr[i] = 0;
-        }
-    }
-    else if (shift < 0)
-    {
-        for (int i = 1; i <= -shift; ++i)
-        {
-            distr[0] += distr[i];
-        }
-        for (int i = -shift + 1; i < maxVal; ++i)
-        {
-            distr[i + shift] = distr[i];
-        }
-        distr.resize(std::max(maxVal + shift, 1));
-    }
-}
-
 std::vector<int> findOthersCumDistr(const std::vector<State>& states, const Config& config)
 {
     int numSims = config.competitive;
     std::vector<int> othersCumDistr;
-
-    double expected = 0;
 
     for (int other = 0; other < config.numPlayers; ++other)
     {
         if (other == config.player) continue;
 
         const State& otherState = states[other];
-        expected += otherState.score + getScore(otherState.free, otherState.goods);
         for (int i = 0; i < numSims; ++i)
         {
             addToDistr(miniSimGame(otherState), othersCumDistr);
         }
     }
-
-    fixMean(othersCumDistr, expected);
 
     for (int i = 1; i < (int) othersCumDistr.size(); ++i)
     {
@@ -1123,13 +1075,10 @@ Move getCompetitiveMove(const std::vector<State>& states, const Occurs& diceOccu
             }
         }
 
-        fixMean(distr, expected);
-
         option.score = findExpectedRank(distr, othersCumDistr);
-
-        // std::cerr << " " << option.toString() << ": " << option.score << " / " << expected << std::endl;
-
         best = std::max(best, option);
+
+        // std::cerr << " " << option.toString() << ": " << option.score  << " / " << expected << std::endl;
     }
 
     return best;
@@ -1527,6 +1476,8 @@ struct Stats
     std::vector<int> distr;
 };
 
+const bool PRINT_RUN_MEAN = true;
+
 Stats findStats(int n, Config& config, int povPlayer = 0, bool useRank = false)
 {
     Stats stats;
@@ -1535,14 +1486,20 @@ Stats findStats(int n, Config& config, int povPlayer = 0, bool useRank = false)
         return !useRank ? r : displayRank(r - config.numPlayers, config);
     };
 
+    double runSum = 0;
+
     for (int i = 0; i < n; ++i)
     {
         auto results = simGame(config);
         int r = !useRank ? results[povPlayer].score : results[povPlayer].rank + config.numPlayers;
         addToDistr(r, stats.distr);
-        std::cerr << "." << std::flush;
+
+        if (PRINT_RUN_MEAN)
+        {
+            runSum += getVal(r);
+            std::cout << i + 1 << ": " << runSum / (i + 1) << std::endl;
+        }
     }
-    std::cerr << std::endl;
 
     double sum = 0;
     double sqSum = 0;

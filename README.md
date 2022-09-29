@@ -42,6 +42,23 @@ E.g. Three pairs: threes, fives and sixes.
 
 The UI is entirely in the console. It should be fairly intuitive. Moves are written in the format: name of the move, followed by its arguments given as numbers. E.g. "Collect 3", "Two triples 3 5", "Despirala", "Reroll". While collecting the two possible moves are "Continue collecting" and "Stop collecting" (or just "Continue" and "Stop"). Move names are case insensitive.
 
+# Engine
+
+The engine precomputes the expected scores of reachable positions. If wanted, it can do this with Monte Carlo sampling in each state.
+However, exactly computing the value of each state is tractable. Thus, the engine can optimally solve the game. Using these precomputed
+values it can evaluate the expected score from any states and the delta in any transition between states (i.e. luck when rolling and
+mistakes when choosing a move). Note that the engine solves for maximizing the expected score, without caring about other players
+or winning chances.
+
+# Competitive play
+
+There is a WIP competitive strategy. It tries to optimize the winning chances/expected rank. It explores the possible moves of the
+current player and assume the game is played according to the EV maximizing strategy from there on. It then uses the distribution
+of the scores of the other players and the distributions of all the moves to choose the move which results in the best expected rank.
+This is still WIP and works through Monte Carlo simulations of the games (instead of exact computations). To beat the EV maximizing
+strategy it needs to simulate about 10k games per distribution, which is quite slow. Its mean rank then is around 1.4 (it wins 60%
+of the games).
+
 ## Performance stats
 
 Stats for normal_exact.model and misere_exact.model are obtained with 100 million tests.
