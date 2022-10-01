@@ -553,6 +553,14 @@ std::vector<Move> getMoveOptions(int free, int goods, const Occurs& diceOccurs)
     return options;
 }
 
+std::vector<Move> getCollMoveOptions(int goods, int left)
+{
+    std::vector<Move> options;
+    options.emplace_back(M_STOP_COLL);
+    if (goods > 0 && left > 0) options.emplace_back(M_CONT_COLL);
+    return options;
+}
+
 bool isFound[NUM_MASKS][MAX_GOODS + 1];
 double score[NUM_MASKS][MAX_GOODS + 1];
 bool isFoundColl[NUM_MASKS][MAX_GOODS + 1][NUM_SIDES][NUM_DICE + 1];
@@ -574,12 +582,17 @@ double getCollContScore(int free, int goods, int num, int left)
 
 Move getCollMove(int free, int goods, int num, int left)
 {
-    Move best = Move(M_STOP_COLL);
-    best.score = getScore(free, goods);
-    if (goods > 0 && left)
+    Move best;
+    for (Move& option : getCollMoveOptions(goods, left))
     {
-        Move option = Move(M_CONT_COLL);
-        option.score = getCollContScore(free, goods, num, left);
+        if (option.id == M_STOP_COLL)
+        {
+            option.score = getScore(free, goods);
+        }
+        else if (option.id == M_CONT_COLL)
+        {
+            option.score = getCollContScore(free, goods, num, left);
+        }
         best = std::max(best, option);
     }
     return best;
@@ -786,6 +799,8 @@ struct State
 
     double scoreByReason[NUM_REASONS];
 
+    std::vector<int> othersCumDistr;
+
     State():
         free(NUM_MASKS - 1),
         goods(0),
@@ -921,25 +936,24 @@ private:
     }
 };
 
-double findExpectedRank(std::vector<int>& distr, std::vector<int>& othersCumDistr)
+double findExpectedRank(const std::vector<int>& distr, const std::vector<int>& othersCumDistr)
 {
     if (othersCumDistr.size() == 0) return 0;
 
-    int maxVal = std::max(distr.size(), othersCumDistr.size());
+    int othersMaxVal = othersCumDistr.size();
 
     int n = 0;
     int m = othersCumDistr.back();
     long long sum = 0;
 
-    distr.resize(maxVal, 0);
-    othersCumDistr.resize(maxVal, m);
-
-    for (int i = 0; i < maxVal; ++i)
+    for (int i = 0; i < (int) distr.size(); ++i)
     {
         n += distr[i];
-        sum += (long long) distr[i] * (i > 0 ? othersCumDistr[i - 1] : 0);
-        sum -= (long long) distr[i] * (m - othersCumDistr[i]);
+        sum += (long long) distr[i] * (i == 0 ? 0 : i > othersMaxVal ? m : othersCumDistr[i - 1]);
+        sum -= (long long) distr[i] * (i >= othersMaxVal ? 0 : m - othersCumDistr[i]);
     }
+
+    if (n == 0 || m == 0) return 0;
 
     long long combs = (long long) n * m;
 
@@ -991,10 +1005,18 @@ int miniSimGameMove(const State& state, const Occurs& occurs, int extraDice, int
     return miniSimGame(newState);
 }
 
-std::vector<int> findOthersCumDistr(const std::vector<State>& states, const Config& config)
+int miniSimGameCollStop(const State& state, int num, int collected)
+{
+    State newState = state;
+    newState.score += num * collected;
+    return miniSimGame(newState);
+}
+
+void findOthersCumDistr(std::vector<State>& states, const Config& config)
 {
     int numSims = config.competitive;
-    std::vector<int> othersCumDistr;
+    std::vector<int>& othersCumDistr = states[config.player].othersCumDistr;
+    othersCumDistr.clear();
 
     for (int other = 0; other < config.numPlayers; ++other)
     {
@@ -1011,21 +1033,46 @@ std::vector<int> findOthersCumDistr(const std::vector<State>& states, const Conf
     {
         othersCumDistr[i] += othersCumDistr[i - 1];
     }
-
-    return othersCumDistr;
 }
 
-Move getCompetitiveMoveColl(const std::vector<State>& states, int num, int left, const Config& config)
+Move getCompetitiveCollMove(const std::vector<State>& states, int num, int collected, const Config& config)
 {
-    std::vector<int> othersCumDistr = findOthersCumDistr(states, config);
+    int numSims = config.competitive;
+    std::vector<int> distr;
 
-    return getCollMove(states[config.player].free, states[config.player].goods, num, left);
+    const State& state = states[config.player];
+    int goods = state.goods;
+
+    Move best;
+    for (Move& option : getCollMoveOptions(goods, NUM_DICE - collected))
+    {
+        distr.clear();
+
+        for (int i = 0; i < numSims; ++i)
+        {
+            int res = 0;
+            if (option.id == M_STOP_COLL)
+            {
+                res = miniSimGameCollStop(state, num, collected);
+            }
+            else if (option.id == M_CONT_COLL)
+            {
+                res = miniSimGameColl(state, num, collected);
+            }
+            addToDistr(res, distr);
+        }
+
+        option.score = findExpectedRank(distr, state.othersCumDistr);
+        best = std::max(best, option);
+
+        // std::cerr << " " << option.toString() << ": " << option.score << std::endl;
+    }
+
+    return best;
 }
 
 Move getCompetitiveMove(const std::vector<State>& states, const Occurs& diceOccurs, const Config& config)
 {
-    std::vector<int> othersCumDistr = findOthersCumDistr(states, config);
-
     int numSims = config.competitive;
     std::vector<int> distr;
 
@@ -1043,42 +1090,33 @@ Move getCompetitiveMove(const std::vector<State>& states, const Occurs& diceOccu
 
         distr.clear();
 
-        double expected = state.score;
-
-        if (id == M_REROLL)
+        for (int i = 0; i < numSims; ++i)
         {
-            expected += getContScore(newState.free, goods - 1);
-            for (int i = 0; i < numSims; ++i)
+            int res = 0;
+            if (id == M_REROLL)
             {
-                addToDistr(miniSimGameReroll(newState), distr);
+                res = miniSimGameReroll(newState);
             }
-        }
-        else if (num > 0)
-        {
-            int curr = diceOccurs[num - 1];
-            expected += num * curr + getCollScore(newState.free, goods, num, NUM_DICE - curr);
-            for (int i = 0; i < numSims; ++i)
+            else if (num > 0)
             {
-                addToDistr(miniSimGameColl(newState, num, curr), distr);
+                int curr = diceOccurs[num - 1];
+                res = miniSimGameColl(newState, num, curr);
             }
-        }
-        else
-        {
-            Target t = combos[id]->getTargetByArgs(option.args);
-            Occurs newOccurs = t.occurs;
-            int extraDice = NUM_DICE - diceInOcc(newOccurs);
-            remOcc(newOccurs, diceOccurs);
-            expected += getMoveScore(newState.free, goods, newOccurs, extraDice, t.points);
-            for (int i = 0; i < numSims; ++i)
+            else
             {
-                addToDistr(miniSimGameMove(newState, newOccurs, extraDice, t.points), distr);
+                Target t = combos[id]->getTargetByArgs(option.args);
+                Occurs newOccurs = t.occurs;
+                int extraDice = NUM_DICE - diceInOcc(newOccurs);
+                remOcc(newOccurs, diceOccurs);
+                res = miniSimGameMove(newState, newOccurs, extraDice, t.points);
             }
+            addToDistr(res, distr);
         }
 
-        option.score = findExpectedRank(distr, othersCumDistr);
+        option.score = findExpectedRank(distr, state.othersCumDistr);
         best = std::max(best, option);
 
-        // std::cerr << " " << option.toString() << ": " << option.score  << " / " << expected << std::endl;
+        // std::cerr << " " << option.toString() << ": " << option.score << std::endl;
     }
 
     return best;
@@ -1177,6 +1215,8 @@ void simColl(std::vector<State>& states, int num, int collected, Config& config)
 {
     State& s = states[config.player];
 
+    config.competitive = false;
+
     bool first = true;
     bool cont = true;
     while (cont)
@@ -1191,7 +1231,7 @@ void simColl(std::vector<State>& states, int num, int collected, Config& config)
         moveSelectColl:
 
         Move mv = config.manualMoves || config.logMode == LOG_READ ? chooseMove(config) :
-                  (config.competitive ? getCompetitiveMoveColl(states, num, left, config) : bestMv);
+                  (config.competitive ? getCompetitiveCollMove(states, num, collected, config) : bestMv);
 
         if (!config.manualMoves && config.verbose) std::cout << "Move: " << mv.toString() << std::endl;
 
@@ -1204,7 +1244,7 @@ void simColl(std::vector<State>& states, int num, int collected, Config& config)
             break;
         
         case M_CONT_COLL:
-            if (s.goods > 0 && left)
+            if (s.goods > 0 && left > 0)
             {
                 if (config.logMode == LOG_WRITE) config.logOut << mv.toString() << std::endl;
 
@@ -1314,6 +1354,8 @@ void simTurn(std::vector<State>& states, Config& config)
         s.updateExpScore(getScore(s.free, s.goods), R_NONE);
         std::cout << "Expected final score: " << std::fixed << std::setprecision(IO_PRECISION) << s.expScore << std::endl;
     }
+
+    if (!config.manualMoves && config.competitive) findOthersCumDistr(states, config);
 
     s.goods += GOODS_PER_TURN;
 
@@ -1499,7 +1541,7 @@ Stats findStats(int n, Config& config, int povPlayer = 0, bool useRank = false)
         {
             runSumScore += results[povPlayer].score;
             runSumRank += displayRank(results[povPlayer].rank, config);
-            std::cout << i + 1 << ": " << runSumScore / (i + 1) << " " << runSumRank / (i + 1) << std::endl;
+            std::cerr << i + 1 << ": " << runSumScore / (i + 1) << " " << runSumRank / (i + 1) << std::endl;
         }
     }
 
