@@ -592,10 +592,10 @@ double getCollContScore(int free, int goods, int num, int left)
     return sc;
 }
 
-Move getCollMoveSlow(int free, int goods, int num, int left)
+std::vector<Move> getCollMoveOptionsScored(int free, int goods, int num, int left)
 {
-    Move best;
-    for (Move& option : getCollMoveOptions(goods, left))
+    std::vector<Move> options = getCollMoveOptions(goods, left);
+    for (Move& option : options)
     {
         if (option.id == M_STOP_COLL)
         {
@@ -605,12 +605,12 @@ Move getCollMoveSlow(int free, int goods, int num, int left)
         {
             option.score = getCollContScore(free, goods, num, left);
         }
-        best = std::max(best, option);
     }
-    return best;
+    std::sort(options.rbegin(), options.rend());
+    return options;
 }
 
-// Optimized version of the above
+// Optimized version of getCollMoveOptionsScored(...)[0]
 Move getCollMove(int free, int goods, int num, int left)
 {
     Move best(M_STOP_COLL, getScore(free, goods));
@@ -653,10 +653,10 @@ double getMoveScore(int free, int goods, const Occurs& occurs, int extraDice, in
     return score;
 }
 
-Move getMoveSlow(int free, int goods, const Occurs& diceOccurs)
+std::vector<Move> getMoveOptionsScored(int free, int goods, const Occurs& diceOccurs)
 {
-    Move best;
-    for (Move& option : getMoveOptions(free, goods, diceOccurs))
+    std::vector<Move> options = getMoveOptions(free, goods, diceOccurs);
+    for (Move& option : options)
     {
         int id = option.id;
         int newFree = id != M_REROLL ? setUsed(free, id) : free;
@@ -679,14 +679,12 @@ Move getMoveSlow(int free, int goods, const Occurs& diceOccurs)
             remOcc(newOccurs, diceOccurs);
             option.score = getMoveScore(newFree, goods, newOccurs, extraDice, t.points);
         }
-
-        best = std::max(best, option);
     }
-
-    return best;
+    std::sort(options.rbegin(), options.rend());
+    return options;
 }
 
-// Optimized version of the above
+// Optimized version of getMoveOptionsScored(...)[0]
 Move getMove(int free, int goods, const Occurs& diceOccurs)
 {
     Move best;
@@ -1219,17 +1217,38 @@ void findOthersCumDistr(std::vector<State>& states, const Config& config)
     }
 }
 
+double getMean(const std::vector<int>& distr)
+{
+    long long cnt = 0;
+    long long sum = 0;
+    for (int i = 0; i < (int) distr.size(); ++i)
+    {
+        cnt += distr[i];
+        sum += i * distr[i];
+    }
+    return (double) sum / cnt;
+}
+
+const double MAX_COMP_SLACK = 4;
+
 Move getCompetitiveCollMove(const std::vector<State>& states, int num, int collected, const Config& config)
 {
     int numSims = config.competitive;
     std::vector<int> distr;
 
     const State& state = states[config.player];
+    int free = state.free;
     int goods = state.goods;
 
     Move best;
-    for (Move& option : getCollMoveOptions(goods, NUM_DICE - collected))
+    double bestExpected = -1;
+    for (Move& option : getCollMoveOptionsScored(free, goods, num, NUM_DICE - collected))
     {
+        double expected = state.score + num * collected + option.score;
+
+        if (bestExpected < 0) bestExpected = expected;
+        else if (std::abs(bestExpected - expected) > MAX_COMP_SLACK) break;
+
         distr.clear();
 
         for (int i = 0; i < numSims; ++i)
@@ -1250,7 +1269,7 @@ Move getCompetitiveCollMove(const std::vector<State>& states, int num, int colle
         option.score = findExpectedRank(distr, state.othersCumDistr);
         best = std::max(best, option);
 
-        // std::cerr << " " << option.toString() << ": " << option.score << std::endl;
+        // std::cerr << " " << option.toString() << ": " << option.score << " / " << getMean(distr) << " / " << expected << std::endl;
     }
 
     return best;
@@ -1266,8 +1285,14 @@ Move getCompetitiveMove(const std::vector<State>& states, const Occurs& diceOccu
     int goods = state.goods;
 
     Move best;
-    for (Move& option : getMoveOptions(free, goods, diceOccurs))
+    double bestExpected = -1;
+    for (Move& option : getMoveOptionsScored(free, goods, diceOccurs))
     {
+        double expected = state.score + option.score;
+
+        if (bestExpected < 0) bestExpected = expected;
+        else if (std::abs(bestExpected - expected) > MAX_COMP_SLACK) break;
+
         int id = option.id;
         State newState = state;
         newState.free = id != M_REROLL ? setUsed(free, id) : free;
@@ -1302,7 +1327,7 @@ Move getCompetitiveMove(const std::vector<State>& states, const Occurs& diceOccu
         option.score = findExpectedRank(distr, state.othersCumDistr);
         best = std::max(best, option);
 
-        // std::cerr << " " << option.toString() << ": " << option.score << std::endl;
+        // std::cerr << " " << option.toString() << ": " << option.score << " / " << getMean(distr) << " / " << expected << std::endl;
     }
 
     return best;
