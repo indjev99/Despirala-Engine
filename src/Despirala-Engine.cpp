@@ -1034,9 +1034,26 @@ bool isDone(const Occurs& occurs)
     return std::all_of(occurs.begin(), occurs.end(), [](int n) {return n == 0;});
 }
 
-void simMove(std::vector<State>& states, Occurs& occurs, int extraDice, int reward, Config& config);
-void simColl(std::vector<State>& states, int num, int collected, Config& config);
-void simTurn(std::vector<State>& states, Config& config);
+int randNumRolls(Occurs& occurs, int extraDice, int goods)
+{
+    int rolls = 0;
+    while (!isDone(occurs) && rolls < goods)
+    {
+        ++rolls;
+        randRemOcc(extraDice, occurs);
+    }
+    return rolls;
+}
+
+int randNumNewHits(int left)
+{
+    int newHits = 0;
+    for (int i = 0; i < left; ++i)
+    {
+        if (randDiceRoll() == 0) ++newHits;
+    }
+    return newHits;
+}
 
 // Optimized version of simColl for simulations
 void miniSimColl(State& state, int num, int collected)
@@ -1058,11 +1075,7 @@ void miniSimColl(State& state, int num, int collected)
             {
                 cont = true;
                 --state.goods;
-                int newHits = 0;
-                for (int i = 0; i < left; ++i)
-                {
-                    if (randDiceRoll() == 0) ++newHits;
-                }
+                int newHits = randNumNewHits(left);
                 collected += newHits;
             }
             else assert(false);
@@ -1080,16 +1093,8 @@ void miniSimColl(State& state, int num, int collected)
 // Optimized version of simMove for simulations
 void miniSimMove(State& state, Occurs& occurs, int extraDice, int reward)
 {
-    int rolls = 0;
-    bool won;
-
-    while (!isDone(occurs) && rolls < state.goods)
-    {
-        ++rolls;
-        randRemOcc(extraDice, occurs);
-    }
-
-    won = isDone(occurs);
+    int rolls = randNumRolls(occurs, extraDice, state.goods);
+    bool won = isDone(occurs);
 
     state.goods -= rolls;
     if (won) state.score += reward;
@@ -1182,6 +1187,15 @@ int miniSimGameCollStop(State& state, int num, int collected)
     return miniSimGame(state);
 }
 
+int miniSimGameCollCont(State& state, int num, int collected)
+{
+    --state.goods;
+    int newHits = randNumNewHits(NUM_DICE - collected);
+    collected += newHits;
+    miniSimColl(state, num, collected);
+    return miniSimGame(state);
+}
+
 void findOthersCumDistr(std::vector<State>& states, const Config& config)
 {
     int numSims = config.competitive;
@@ -1228,7 +1242,7 @@ Move getCompetitiveCollMove(const std::vector<State>& states, int num, int colle
             }
             else if (option.id == M_CONT_COLL)
             {
-                res = miniSimGameColl(tempState, num, collected);
+                res = miniSimGameCollCont(tempState, num, collected);
             }
             addToDistr(res, distr);
         }
@@ -1382,8 +1396,6 @@ void simColl(std::vector<State>& states, int num, int collected, Config& config)
 {
     State& state = states[config.player];
 
-    config.competitive = false;
-
     bool first = true;
     bool cont = true;
     bool fail = false;
@@ -1419,15 +1431,9 @@ void simColl(std::vector<State>& states, int num, int collected, Config& config)
                 if (config.evalLM) state.updateExpScore(num * collected + getCollContScore(state.free, state.goods, num, left), R_MISTAKE);
                 cont = true;
                 --state.goods;
-                int newHits = 0;
+                int newHits;
                 if (config.manualRolls || config.logMode == LOG_READ) newHits = chooseNumNewHits(num, left, config);
-                else
-                {
-                    for (int i = 0; i < left; ++i)
-                    {
-                        if (randDiceRoll() == 0) ++newHits;
-                    }
-                }
+                else newHits = randNumNewHits(left);
 
                 if (config.logMode == LOG_WRITE) config.logOut << newHits << std::endl;
 
@@ -1469,23 +1475,20 @@ void simMove(std::vector<State>& states, Occurs& occurs, int extraDice, int rewa
     State& state = states[config.player];
 
     bool instaDone = isDone(occurs);
-    int rolls = 0;
+    int rolls;
     bool won;
 
     if (config.manualRolls || config.logMode == LOG_READ)
     {
         if (!instaDone && state.goods > 0) rolls = chooseNumRolls(config);
+        else rolls = 0;
 
         won = instaDone || (rolls > 0 && rolls <= state.goods);
         if (!won) rolls = state.goods;
     }
     else
     {
-        while (!isDone(occurs) && rolls < state.goods)
-        {
-            ++rolls;
-            randRemOcc(extraDice, occurs);
-        }
+        rolls = randNumRolls(occurs, extraDice, state.goods);
         won = isDone(occurs);
     }
 
@@ -2068,8 +2071,7 @@ void shell()
 
 int main()
 {
-    // generator.seed(time(nullptr));
-    generator.seed(0);
+    generator.seed(time(nullptr));
 
     std::cout << "Normal play or misere play (0 / 1): ";
     std::cin >> MISERE;
