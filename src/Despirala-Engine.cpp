@@ -34,6 +34,7 @@ const int VALID_CODES = 30; // Sum_{0 <= k <= NUM_DICE} #ways to partition k int
 const int VALID_ORD_CODES = 924; // Sum_{0 <= k <= NUM_DICE} #ways to partition k into NUM_SIDES ordered partitions
 const int STARTS_ORD_CODES[NUM_DICE + 2] = {0, 1, 7, 28, 84, 210, 462, 924}; // 0 <= t <= NUM_DICE + 1: Sum_{0 <= k <= t} #ways to partition k into NUM_SIDES ordered partitions
 const int NUM_MASKS = 1 << NUM_COMBOS;
+const int INITIAL_MASK = NUM_MASKS - 1;
 const int MAX_GOODS = NUM_COMBOS * GOODS_PER_TURN;
 
 int NUM_TRIALS; // Trials per state
@@ -761,7 +762,7 @@ double getScore(int free, int goods)
 
 double getInitialScore()
 {
-    return getScore(NUM_MASKS - 1, 0);
+    return getScore(INITIAL_MASK, 0);
 }
 
 std::string stringToLower(std::string s)
@@ -860,7 +861,7 @@ struct State
     std::vector<double> othersCumDistr;
 
     State():
-        free(NUM_MASKS - 1),
+        free(INITIAL_MASK),
         goods(0),
         score(0),
         expScore(getInitialScore())
@@ -1802,7 +1803,7 @@ struct Stats
     std::vector<int> distr;
 };
 
-const bool PRINT_RUN_MEAN = true;
+const bool PRINT_RUN_MEAN = false;
 
 Stats findStats(int n, Config& config, int povPlayer = 0, bool useRank = false)
 {
@@ -2152,7 +2153,7 @@ void shell()
         else if (cmd == "expected")
         {
             std::cout << std::endl;
-            std::cout << "Expected score: " << getScore(NUM_MASKS - 1, 0) << std::endl;
+            std::cout << "Expected score: " << getInitialScore() << std::endl;
         }
         if (cmd == "credits")
         {
