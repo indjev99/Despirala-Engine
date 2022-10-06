@@ -32,8 +32,9 @@ const int POINTS_PER_GOOD = 1;
 const int ZERO_CODE = 0;
 const int ZERO_ORD_CODE = 0;
 const int VALID_CODES = 30; // Sum_{0 <= k <= NUM_DICE} #ways to partition k into at most NUM_SIDES partitions
-const int VALID_ORD_CODES = 924; // Sum_{0 <= k <= NUM_DICE} #ways to partition k into NUM_SIDES ordered partitions
 const int STARTS_ORD_CODES[NUM_DICE + 2] = {0, 1, 7, 28, 84, 210, 462, 924}; // 0 <= t <= NUM_DICE + 1: Sum_{0 <= k <= t} #ways to partition k into NUM_SIDES ordered partitions
+const int VALID_ORD_CODES = STARTS_ORD_CODES[NUM_DICE + 1];
+const int START_FULL_ORD_CODES = STARTS_ORD_CODES[NUM_DICE];
 const int NUM_MASKS = 1 << NUM_COMBOS;
 const int INITIAL_MASK = NUM_MASKS - 1;
 const int MAX_GOODS = NUM_COMBOS * GOODS_PER_TURN;
@@ -54,13 +55,11 @@ bool scoreLt(double a, double b)
 using Occurs = std::array<int, NUM_SIDES>;
 
 std::unordered_map<int, int> rawCodeToCode;
-int codeToRawCode[VALID_CODES];
-
-std::unordered_map<int, int> ordRawCodeToCode;
-int ordCodeToRawCode[VALID_ORD_CODES];
+std::unordered_map<int, int> ordRawCodeToOrdCode;
 
 int occursToCode(Occurs occurs, bool ordered)
 {
+    std::unordered_map<int, int>& currRawCodeToCode = !ordered ? rawCodeToCode : ordRawCodeToOrdCode;
     if (!ordered) std::sort(occurs.begin(), occurs.end(), std::greater<int>());
 
     int rawCode = 0;
@@ -68,31 +67,7 @@ int occursToCode(Occurs occurs, bool ordered)
     {
         rawCode = rawCode * (NUM_DICE + 1) + occurs[i];
     }
-    if (!ordered)
-    {
-        auto it = rawCodeToCode.insert({rawCode, rawCodeToCode.size()}).first;
-        codeToRawCode[it->second] = rawCode;
-        return it->second;
-    }
-    else
-    {
-        auto it = ordRawCodeToCode.insert({rawCode, ordRawCodeToCode.size()}).first;
-        ordCodeToRawCode[it->second] = rawCode;
-        return it->second;
-    }
-}
-
-Occurs codeToOccurs(int code, bool ordered)
-{
-    int rawCode = !ordered ? codeToRawCode[code] : ordCodeToRawCode[code];
-    Occurs occurs;
-    occurs.fill(0);
-    for (int i = NUM_SIDES - 1; i>= 0; --i)
-    {
-        occurs[i] = rawCode % (NUM_SIDES + 1);
-        rawCode /= NUM_SIDES + 1;
-    }
-    return occurs;
+    return currRawCodeToCode.insert({rawCode, currRawCodeToCode.size()}).first->second;
 }
 
 int fact(int n)
@@ -117,10 +92,9 @@ double occursProb(const Occurs& occurs)
 }
 
 int diceInCode[VALID_CODES];
-int codeElem[VALID_CODES][NUM_SIDES];
 int diceInOrdCode[VALID_ORD_CODES];
-int ordCodeElem[VALID_ORD_CODES][NUM_SIDES];
-
+Occurs codeOccurs[VALID_CODES];
+Occurs ordCodeOccurs[VALID_ORD_CODES];
 double ordCodeProb[VALID_ORD_CODES];
 
 void genCodesRec(Occurs& occurs, int pos, int dice)
@@ -132,12 +106,8 @@ void genCodesRec(Occurs& occurs, int pos, int dice)
 
         diceInCode[code] = diceInOccurs(occurs);
         diceInOrdCode[ordCode] = diceInCode[code];
-        for (int i = 0; i < NUM_SIDES; ++i)
-        {
-            codeElem[code][i] = occurs[i];
-            ordCodeElem[ordCode][i] = occurs[i];
-        }
-
+        codeOccurs[code] = occurs;
+        ordCodeOccurs[ordCode] = occurs;
         ordCodeProb[ordCode] = occursProb(occurs);
     }
 
@@ -150,12 +120,14 @@ void genCodesRec(Occurs& occurs, int pos, int dice)
     }
 }
 
-void remOccurs(Occurs& occurs, const Occurs& diceOccurs)
+Occurs remOccurs(const Occurs& occurs, const Occurs& diceOccurs)
 {
+    Occurs res;
     for (int i = 0; i < NUM_SIDES; ++i)
     {
-        occurs[i] = std::max(occurs[i] - diceOccurs[i], 0);
+        res[i] = std::max(occurs[i] - diceOccurs[i], 0);
     }
+    return res;
 }
 
 // Both result in code
@@ -174,10 +146,7 @@ void genCodes()
     {
         for (int diceOrdCode = 0; diceOrdCode < VALID_ORD_CODES; ++diceOrdCode)
         {
-            Occurs occurs = codeToOccurs(code, false);
-            Occurs diceOccurs = codeToOccurs(diceOrdCode, true);
-            remOccurs(occurs, diceOccurs);
-            codeRemOrdCode[code][diceOrdCode] = occursToCode(occurs, false);
+            codeRemOrdCode[code][diceOrdCode] = occursToCode(remOccurs(codeOccurs[code], ordCodeOccurs[diceOrdCode]), false);
         }
     }
 
@@ -185,13 +154,12 @@ void genCodes()
     {
         for (int diceOrdCode = 0; diceOrdCode < VALID_ORD_CODES; ++diceOrdCode)
         {
-            Occurs occurs = codeToOccurs(ordCode, true);
-            Occurs diceOccurs = codeToOccurs(diceOrdCode, true);
-            remOccurs(occurs, diceOccurs);
-            ordCodeRemOrdCode[ordCode][diceOrdCode] = occursToCode(occurs, false);
+            ordCodeRemOrdCode[ordCode][diceOrdCode] = occursToCode(remOccurs(ordCodeOccurs[ordCode], ordCodeOccurs[diceOrdCode]), false);
         }
     }
 }
+
+#define NONUM -1
 
 struct Target
 {
@@ -227,7 +195,7 @@ struct Combo
 
     virtual int getCollectNumber() const
     {
-        return 0;
+        return NONUM;
     }
 
     virtual const std::vector<Target>& getTargets(int diceOrdCode) const
@@ -242,6 +210,8 @@ struct Combo
         assert(false);
         return Target(ZERO_ORD_CODE, 0);
     }
+
+    virtual ~Combo() {}
 
 protected:
 
@@ -298,7 +268,7 @@ bool checkArgs(const std::vector<int>& args)
     {
         if (arg < 0 || arg >= NUM_SIDES) return false;
         auto res = takenArgs.insert(arg);
-        if (res.second) return false;
+        if (!res.second) return false;
     }
     return true;
 }
@@ -306,17 +276,7 @@ bool checkArgs(const std::vector<int>& args)
 struct PermCombo : Combo
 {
     PermCombo(const std::string& name, int points, const Occurs& occurs):
-        Combo(name, points),
-        templateCode(occursToCode(occurs, false))
-    {
-        
-        for (numArgs = 0; numArgs < NUM_SIDES && codeElem[templateCode][numArgs] > 0; ++numArgs);
-
-        for (int diceOrdCode = STARTS_ORD_CODES[NUM_DICE]; diceOrdCode < VALID_ORD_CODES; ++diceOrdCode)
-        {
-            cache[diceOrdCode] = rawGetTargets(diceOrdCode);
-        }
-    }
+        PermCombo(name, points, occurs, false) {}
 
     int getNumArgs() const override
     {
@@ -328,12 +288,7 @@ struct PermCombo : Combo
         return cache[diceOrdCode];
     }
 
-    Target getTargetByArgs(const std::vector<int>& args) const
-    {
-        int ordCode = makeOrdCodeByArgs(args);
-        int currPoints = getPoints(ordCode);
-        return Target(ordCode, currPoints, args);
-    }
+    Target getTargetByArgs(const std::vector<int>& args) const override;
 
 protected:
 
@@ -341,6 +296,23 @@ protected:
 
     int numArgs;
     std::vector<Target> cache[VALID_ORD_CODES];
+
+    PermCombo(const std::string& name, int points, const Occurs& occurs, bool isChild):
+        Combo(name, points),
+        templateCode(occursToCode(occurs, false))
+    {
+        for (numArgs = 0; numArgs < NUM_SIDES && codeOccurs[templateCode][numArgs] > 0; ++numArgs);
+
+        if (!isChild) buildCache();
+    }
+
+    void buildCache()
+    {
+        for (int diceOrdCode = START_FULL_ORD_CODES; diceOrdCode < VALID_ORD_CODES; ++diceOrdCode)
+        {
+            cache[diceOrdCode] = rawGetTargets(diceOrdCode);
+        }
+    }
 
     virtual int getPoints(int ordCode) const
     {
@@ -353,7 +325,7 @@ protected:
         occurs.fill(0);
         for (int i = 0; i < numArgs; ++i)
         {
-            occurs[args[i]] = codeElem[templateCode][i];
+            occurs[args[i]] = codeOccurs[templateCode][i];
         }
         return occursToCode(occurs, true);
     }
@@ -388,6 +360,8 @@ protected:
             if (inc) break;
         }
 
+        std::vector<Target> targets;
+
         for (int i = 0; i < (int) possTargetCodes.size(); ++i)
         {
             auto& [target, code] = possTargetCodes[i];
@@ -404,8 +378,8 @@ protected:
                 int cmp = 0;
                 for (int k = 0; k < NUM_SIDES && cmp == 0; ++k)
                 {
-                    if (codeElem[code][k] == codeElem[otherCode][k]) continue;
-                    cmp = codeElem[code][k] < codeElem[otherCode][k] ? -1 : 1;
+                    if (codeOccurs[code][k] == codeOccurs[otherCode][k]) continue;
+                    cmp = codeOccurs[code][k] < codeOccurs[otherCode][k] ? -1 : 1;
                 }
 
                 if (cmp == -1) continue;
@@ -416,14 +390,21 @@ protected:
                     else keep = i < j;
                 }
             }
+
+            if (keep) targets.push_back(target);
         }
+
+        return targets;
     }
 };
 
-struct SPermCombo : PermCombo
+struct SPermCombo : public PermCombo
 {
     SPermCombo(const std::string& name, const Occurs& occurs):
-        PermCombo(name, 0, occurs) {}
+        PermCombo(name, 0, occurs, true)
+    {
+        buildCache();
+    }
 
 protected:
 
@@ -432,11 +413,18 @@ protected:
         int points = 0;
         for (int i = 0; i < NUM_SIDES; ++i)
         {
-            points += (i + 1) * ordCodeElem[ordCode][i];
+            points += (i + 1) * ordCodeOccurs[ordCode][i];
         }
         return points;
     }
 };
+
+Target PermCombo::getTargetByArgs(const std::vector<int>& args) const
+{
+    int ordCode = makeOrdCodeByArgs(args);
+    int currPoints = getPoints(ordCode);
+    return Target(ordCode, currPoints, args);
+}
 
 // Game configuration
 std::array<Combo*, NUM_COMBOS> combos;
@@ -444,12 +432,12 @@ std::array<Combo*, NUM_COMBOS> combos;
 void setCombos()
 {
     combos = {
+        new CollectCombo("Collect", 0),
         new CollectCombo("Collect", 1),
         new CollectCombo("Collect", 2),
         new CollectCombo("Collect", 3),
         new CollectCombo("Collect", 4),
         new CollectCombo("Collect", 5),
-        new CollectCombo("Collect", 6),
         new   SPermCombo("Three pairs",        {2, 2, 2, 0, 0, 0}),
         new   SPermCombo("Two triples",        {3, 3, 0, 0, 0, 0}),
         new    PermCombo("Four of a kind", 40, {4, 0, 0, 0, 0, 0}),
@@ -508,7 +496,6 @@ void findRollsDistrSingle(int extraDice, int code)
         rollsDistr[extraDice][code][i] = 0;
         for (int j = i - 1; j >= 0 ; --j)
         {
-            // Is this right? Should this not be * changeProb
             rollsDistr[extraDice][code][i] += rollsDistr[extraDice][code][j] * pow(1 - changeProb, i - j - 1);
         }
     }
@@ -613,7 +600,7 @@ std::string Move::toString() const
     default:
         s = combos[id]->getName();
         int num = combos[id]->getCollectNumber();
-        if (num) s += " " + std::to_string(num);
+        if (num != NONUM) s += " " + std::to_string(num + 1);
         else
         {
             for (int arg : target.args)
@@ -639,12 +626,12 @@ Move::Move(const std::string& name, const std::vector<int>& args):
         for (int i = 0; i < NUM_COMBOS; ++i)
         {
             int num = combos[i]->getCollectNumber();
-            if (name == stringToLower(combos[i]->getName()) && ((num > 0 && nArgs == 1) || (num == 0 && nArgs == combos[i]->getNumArgs())))
+            if (name == stringToLower(combos[i]->getName()) && ((num != NONUM && nArgs == 1) || (num == NONUM && nArgs == combos[i]->getNumArgs())))
             {
-                if (num == 0 || args.front() == num)
+                if (num == NONUM || args.front() == num)
                 {
                     id = i;
-                    if (num == 0) target = combos[i]->getTargetByArgs(args);
+                    if (num == NONUM) target = combos[i]->getTargetByArgs(args);
                     break;
                 }
             }
@@ -669,7 +656,7 @@ std::vector<Move> getMoveOptions(int free, int goods, int diceOrdCode)
     {
         if (!isFree(free, i)) continue;
         int num = combos[i]->getCollectNumber();
-        if (num > 0)
+        if (num != NONUM)
         {
             options.emplace_back(i);
         }
@@ -711,7 +698,7 @@ double getCollContScore(int free, int goods, int num, int left)
     double sc = 0;
     for (int i = 0 ; i <= left; ++i)
     {
-        sc += leftDistr[left][i] * ((left - i) * num + getCollScore(free, goods - 1, num, i));
+        sc += leftDistr[left][i] * ((left - i) * (num + 1) + getCollScore(free, goods - 1, num, i));
     }
     return sc;
 }
@@ -756,7 +743,7 @@ double getCollScore(int free, int goods, int num, int left)
     return collScore[free][goods][num][left];
 }
 
-double getMoveScore(int free, int goods, int code, int extraDice, int reward)
+double getMoveScore(int free, int goods, int code, int extraDice, int points)
 {
     double score = 0;
     double succP = 0;
@@ -769,7 +756,7 @@ double getMoveScore(int free, int goods, int code, int extraDice, int reward)
             score += currP * getScore(free, goods - i);
         }
     }
-    score += succP * reward;
+    score += succP * points;
     score += (1 - succP) * getScore(free, 0);
     return score;
 }
@@ -787,10 +774,10 @@ std::vector<Move> getMoveOptionsScored(int free, int goods, int diceOrdCode)
         {
             option.score = getContScore(newFree, goods - 1);
         }
-        else if (num > 0)
+        else if (num != NONUM)
         {
-            int curr = ordCodeElem[diceOrdCode][num - 1];
-            option.score = num * curr + getCollScore(newFree, goods, num, NUM_DICE - curr);
+            int collected = ordCodeOccurs[diceOrdCode][num];
+            option.score = collected * (num + 1) + getCollScore(newFree, goods, num, NUM_DICE - collected);
         }
         else
         {
@@ -806,16 +793,18 @@ std::vector<Move> getMoveOptionsScored(int free, int goods, int diceOrdCode)
 // Optimized version of getMoveOptionsScored(...)[0]
 Move getMove(int free, int goods, int diceOrdCode)
 {
+    return getMoveOptionsScored(free, goods, diceOrdCode)[0];
+
     Move best;
     for (int i = 0; i < NUM_COMBOS; ++i)
     {
         if (!isFree(free, i)) continue;
         int newFree = setUsed(free, i);
         int num = combos[i]->getCollectNumber();
-        if (num > 0)
+        if (num != NONUM)
         {
-            int curr = ordCodeElem[diceOrdCode][num - 1];
-            Move option(i, num * curr + getCollScore(newFree, goods, num, NUM_DICE - curr));
+            int collected = ordCodeOccurs[diceOrdCode][num];
+            Move option(i, collected * (num + 1) + getCollScore(newFree, goods, num, NUM_DICE - collected));
             best = std::max(best, option);
         }
         else
@@ -854,7 +843,7 @@ double getContScore(int free, int goods)
     }
     else
     {
-        for (int diceOrdCode = STARTS_ORD_CODES[NUM_DICE]; diceOrdCode < VALID_ORD_CODES; ++diceOrdCode)
+        for (int diceOrdCode = START_FULL_ORD_CODES; diceOrdCode < VALID_ORD_CODES; ++diceOrdCode)
         {
             Move move = getMove(free, goods, diceOrdCode);
             score[free][goods] += move.score * ordCodeProb[diceOrdCode];
@@ -1045,7 +1034,7 @@ void addToDistr(int val, std::vector<int>& distr)
 
 bool isDone(int code)
 {
-    return code != ZERO_CODE;
+    return code == ZERO_CODE;
 }
 
 int randNumRolls(int& code, int extraDice, int goods)
@@ -1100,18 +1089,18 @@ void miniSimColl(State& state, int num, int collected)
         }
     }
 
-    int reward = num * collected;
-    state.score += reward;
+    int points = collected * (num + 1);
+    state.score += points;
 }
 
 // Optimized version of simMove for simulations
-void miniSimMove(State& state, int code, int extraDice, int reward)
+void miniSimMove(State& state, int code, int extraDice, int points)
 {
     int rolls = randNumRolls(code, extraDice, state.goods);
     bool won = isDone(code);
 
     state.goods -= rolls;
-    if (won) state.score += reward;
+    if (won) state.score += points;
 }
 
 // Optimized version of simTurn for simulations
@@ -1149,9 +1138,9 @@ void miniSimTurn(State& state)
         {
             state.free = setUsed(state.free, id);
             int num = combos[id]->getCollectNumber();
-            if (num > 0)
+            if (num != NONUM)
             {
-                int collected = ordCodeElem[diceOrdCode][num - 1];
+                int collected = ordCodeOccurs[diceOrdCode][num];
                 miniSimColl(state, num, collected);
             }
             else
@@ -1186,15 +1175,15 @@ int miniSimGameColl(State& state, int num, int collected)
     return miniSimGame(state);
 }
 
-int miniSimGameMove(State& state, int code, int extraDice, int reward)
+int miniSimGameMove(State& state, int code, int extraDice, int points)
 {
-    miniSimMove(state, code, extraDice, reward);
+    miniSimMove(state, code, extraDice, points);
     return miniSimGame(state);
 }
 
 int miniSimGameCollStop(State& state, int num, int collected)
 {
-    state.score += num * collected;
+    state.score += collected * (num + 1);
     return miniSimGame(state);
 }
 
@@ -1340,7 +1329,7 @@ Move getCompetitiveCollMove(const std::vector<State>& states, int num, int colle
     double bestExpected = -1;
     for (Move& option : getCollMoveOptionsScored(free, goods, num, NUM_DICE - collected))
     {
-        double expected = state.score + num * collected + option.score;
+        double expected = state.score + collected * (num + 1) + option.score;
 
         if (bestExpected < 0) bestExpected = expected;
         else if (std::abs(bestExpected - expected) > MAX_COMP_SLACK) break;
@@ -1403,10 +1392,10 @@ Move getCompetitiveMove(const std::vector<State>& states, int diceOrdCode, const
             {
                 res = miniSimGameReroll(tempNewState);
             }
-            else if (num > 0)
+            else if (num != NONUM)
             {
-                int curr = ordCodeElem[diceOrdCode][num - 1];
-                res = miniSimGameColl(tempNewState, num, curr);
+                int collected = ordCodeOccurs[diceOrdCode][num];
+                res = miniSimGameColl(tempNewState, num, collected);
             }
             else
             {
@@ -1436,7 +1425,7 @@ void printOrdCode(int ordCode, Config& config, bool useConfig)
     bool first = true;
     for (int i = 0; i < NUM_SIDES; ++i)
     {
-        for (int j = 0; j < ordCodeElem[ordCode][i]; ++j)
+        for (int j = 0; j < ordCodeOccurs[ordCode][i]; ++j)
         {
             if (!first) out << " ";
             out<< i + 1;
@@ -1504,7 +1493,7 @@ int chooseNumRolls(Config& config)
 const std::string numNames[NUM_SIDES] = {"ones", "twos", "threes", "fours", "fives", "sixes"};
 int chooseNumNewHits(int num, int left, Config& config)
 {
-    if (config.logMode != LOG_READ) std::cout << "Number of " << numNames[num - 1] << " rolled: ";
+    if (config.logMode != LOG_READ) std::cout << "Number of " << numNames[num] << " rolled: ";
     std::istream& in = config.logMode == LOG_READ ? config.logIn : std::cin;
 
     int newHits = -1;
@@ -1528,7 +1517,7 @@ void simColl(std::vector<State>& states, int num, int collected, Config& config)
         int left = NUM_DICE - collected;
         Move bestMove = getCollMove(state.free, state.goods, num, left);
 
-        if (config.evalLM) state.updateExpScore(num * collected + bestMove.score, first ? R_NONE : R_LUCK);
+        if (config.evalLM) state.updateExpScore(collected * (num + 1) + bestMove.score, first ? R_NONE : R_LUCK);
         first = false;
 
         moveSelectColl:
@@ -1543,7 +1532,7 @@ void simColl(std::vector<State>& states, int num, int collected, Config& config)
         case M_STOP_COLL:
             if (config.logMode == LOG_WRITE) config.logOut << move.toString() << std::endl;
 
-            if (config.evalLM) state.updateExpScore(num * collected + getScore(state.free, state.goods), R_MISTAKE);
+            if (config.evalLM) state.updateExpScore(collected * (num + 1) + getScore(state.free, state.goods), R_MISTAKE);
             break;
         
         case M_CONT_COLL:
@@ -1551,7 +1540,7 @@ void simColl(std::vector<State>& states, int num, int collected, Config& config)
             {
                 if (config.logMode == LOG_WRITE) config.logOut << move.toString() << std::endl;
 
-                if (config.evalLM) state.updateExpScore(num * collected + getCollContScore(state.free, state.goods, num, left), R_MISTAKE);
+                if (config.evalLM) state.updateExpScore(collected * (num + 1) + getCollContScore(state.free, state.goods, num, left), R_MISTAKE);
                 cont = true;
                 --state.goods;
                 int newHits;
@@ -1562,7 +1551,7 @@ void simColl(std::vector<State>& states, int num, int collected, Config& config)
 
                 if (!config.manualRolls && config.verbose)
                 {
-                    std::cout << "Number of " << numNames[num - 1] << " rolled: " << newHits << std::endl;
+                    std::cout << "Number of " << numNames[num] << " rolled: " << newHits << std::endl;
                 }
 
                 collected += newHits;
@@ -1584,16 +1573,16 @@ void simColl(std::vector<State>& states, int num, int collected, Config& config)
 
     assert(!fail);
 
-    int reward = num * collected;
-    state.score += reward;
+    int points = collected * (num + 1);
+    state.score += points;
 
     if (config.verbose)
     {
-        std::cout << "Won " << reward << " points." << std::endl;
+        std::cout << "Won " << points << " points." << std::endl;
     }
 }
 
-void simMove(std::vector<State>& states, int code, int extraDice, int reward, Config& config)
+void simMove(std::vector<State>& states, int code, int extraDice, int points, Config& config)
 {
     State& state = states[config.player];
 
@@ -1624,13 +1613,13 @@ void simMove(std::vector<State>& states, int code, int extraDice, int reward, Co
     }
 
     state.goods -= rolls;
-    if (won) state.score += reward;
+    if (won) state.score += points;
 
     if (config.evalLM) state.updateExpScore(getScore(state.free, state.goods), instaDone ? R_NONE : R_LUCK);
 
     if (won && config.verbose)
     {
-        std::cout << "Won " << reward << " points." << std::endl;
+        std::cout << "Won " << points << " points." << std::endl;
     }
 }
 
@@ -1711,10 +1700,10 @@ void simTurn(std::vector<State>& states, Config& config)
 
             state.free = setUsed(state.free, id);
             int num = combos[id]->getCollectNumber();
-            if (num > 0)
+            if (num != NONUM)
             {
-                int collected = ordCodeElem[diceOrdCode][num - 1];
-                if (config.evalLM) state.updateExpScore(num * collected + getCollScore(state.free, state.goods, num, NUM_DICE - collected), R_MISTAKE, bestMove.toString());
+                    int collected = ordCodeOccurs[diceOrdCode][num];
+                if (config.evalLM) state.updateExpScore(collected * (num + 1) + getCollScore(state.free, state.goods, num, NUM_DICE - collected), R_MISTAKE, bestMove.toString());
                 simColl(states, num, collected, config);
             }
             else
@@ -2174,7 +2163,7 @@ int main()
     std::cout << "Normal play or misere play (0 / 1): ";
     std::cin >> MISERE;
 
-    std::cout << "Number of trails per state or 0 for exact model (which costs " << STARTS_ORD_CODES[NUM_DICE + 1] - STARTS_ORD_CODES[NUM_DICE] << " trials per state): ";
+    std::cout << "Number of trails per state or 0 for exact model (which costs " << VALID_ORD_CODES - START_FULL_ORD_CODES << " trials per state): ";
     std::cin >> NUM_TRIALS;
 
     genCodes();
