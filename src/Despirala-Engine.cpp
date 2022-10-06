@@ -47,7 +47,8 @@ double worstScore()
     return !MISERE ? -INF : INF;
 }
 
-bool scoreLt(double a, double b)
+template <class T>
+bool smartLt(T a, T b)
 {
     return !MISERE ? a < b : b < a;
 }
@@ -373,20 +374,21 @@ protected:
 
                 auto& [otherTarget, otherCode] = possTargetCodes[j];
 
-                if (otherTarget.points < target.points) continue;
-
                 int cmp = 0;
-                for (int k = 0; k < NUM_SIDES && cmp == 0; ++k)
+
+                if (smartLt(otherTarget.points, target.points)) continue;
+
+                for (int k = 0; k < NUM_SIDES && cmp != 1; ++k)
                 {
                     if (codeOccurs[code][k] == codeOccurs[otherCode][k]) continue;
-                    cmp = codeOccurs[code][k] < codeOccurs[otherCode][k] ? -1 : 1;
+                    cmp = smartLt(codeOccurs[code][k], codeOccurs[otherCode][k]) ? 1 : -1;
                 }
 
-                if (cmp == -1) continue;
-                else if (cmp == 1) keep = false;
+                if (cmp == 1) continue;
+                else if (cmp == -1) keep = false;
                 else if (cmp == 0)
                 {
-                    if (otherTarget.points > target.points) keep = false;
+                    if (smartLt(target.points, otherTarget.points)) keep = false;
                     else keep = i < j;
                 }
             }
@@ -562,7 +564,7 @@ struct Move
 
 bool operator<(const Move& a, const Move& b)
 {
-    return scoreLt(a.score, b.score);
+    return smartLt(a.score, b.score);
 }
 
 std::string stringToLower(std::string s)
