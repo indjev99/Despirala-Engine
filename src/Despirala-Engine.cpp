@@ -910,17 +910,18 @@ struct State
         bool print = reason == R_LUCK || fabs(delta) > IO_EPS;
         if (print)
         {
-            if (reason == R_LUCK && mult * delta > IO_EPS) std::cout << "Good luck: ";
-            else if (reason == R_LUCK && mult * delta < -IO_EPS) std::cout << "Bad luck: ";
-            else if (reason == R_LUCK && fabs(delta) <= IO_EPS) std::cout << "Neutral luck: ";
+            std::cout.setf(std::ios::showpos);
+            if (reason == R_LUCK && mult * delta > 0) std::cout << "Good luck: ";
+            else if (reason == R_LUCK && mult * delta < 0) std::cout << "Bad luck: ";
             else if (reason == R_MISTAKE && -mult * delta < 1) std::cout << "Inaccuracy: ";
             else if (reason == R_MISTAKE && -mult * delta < 4) std::cout << "Mistake: ";
             else if (reason == R_MISTAKE && -mult * delta < 10) std::cout << "Blunder: ";
             else if (reason == R_MISTAKE && -mult * delta >= 10) std::cout << "Massive blunder: ";
             else if (reason == R_NONE) std::cout << "(Warning) No reason: ";
             else std::cout << "(Error) Invalid reason " << reason << ": ";
-            std::cout << std::fixed << std::setprecision(IO_PRECISION) << delta << std::endl;
+            std::cout << delta << std::endl;
             if (reason == R_MISTAKE && bestMvName != "") std::cout << "Best move was: " << bestMvName << std::endl;
+            std::cout.unsetf(std::ios::showpos);
         }
         scoreByReason[reason] += delta;
         expScore = newExpScore;
@@ -928,10 +929,20 @@ struct State
 
     void printScoreByReason()
     {
-        std::cout << "Baseline score: " << std::fixed << std::setprecision(IO_PRECISION) << getInitialScore() << std::endl;
-        std::cout << "Score due to luck: " << std::fixed << std::setprecision(IO_PRECISION) << scoreByReason[R_LUCK] << std::endl;
-        std::cout << "Score due to mistakes: " << std::fixed << std::setprecision(IO_PRECISION) << scoreByReason[R_MISTAKE] << std::endl;
-        if (fabs(scoreByReason[R_NONE]) > IO_EPS) std::cout << "(Warning) Score for no reason: " << std::fixed << std::setprecision(IO_PRECISION) << scoreByReason[R_NONE] << std::endl;
+        std::cout << "Baseline score: " << getInitialScore() << std::endl;
+
+        std::cout.setf(std::ios::showpos);
+        std::cout << "Score due to luck: " << scoreByReason[R_LUCK] << std::endl;
+        std::cout.unsetf(std::ios::showpos);
+
+        std::cout << "Score due to mistakes: " << scoreByReason[R_MISTAKE] << std::endl;
+
+        if (fabs(scoreByReason[R_NONE]) > IO_EPS)
+        {
+            std::cout.setf(std::ios::showpos);
+            std::cout << "(Warning) Score for no reason: " << std::showpos << scoreByReason[R_NONE] << std::endl;
+            std::cout.unsetf(std::ios::showpos);
+        }
     }
 };
 
@@ -1641,7 +1652,7 @@ void simTurn(std::vector<State>& states, Config& config)
     if (config.evalLM)
     {
         state.updateExpScore(getScore(state.free, state.goods), R_NONE);
-        std::cout << "Expected final score: " << std::fixed << std::setprecision(IO_PRECISION) << state.expScore << std::endl;
+        std::cout << "Expected final score: " << state.expScore << std::endl;
     }
 
     if (!config.manualMoves && config.competitive) findOthersCumDistr(states, config);
@@ -1887,6 +1898,9 @@ void storeModel()
     std::string name = modelName();
     std::ofstream file(name.c_str());
 
+    file.setf(std::ios::scientific);
+    file.precision(FILE_PRECISION);
+
     std::cout << "Storing model in " << name << "." << std::endl;
 
     for (int i = 0; i <= MAX_EXTRA_DICE; ++i)
@@ -1896,7 +1910,7 @@ void storeModel()
             if (i + diceInCode[j] > NUM_DICE) continue;
             for (int k = 0; k <= MAX_GOODS; ++k)
             {
-                file << std::setprecision(FILE_PRECISION) << rollsDistr[i][j][k] << ' ';
+                file << rollsDistr[i][j][k] << ' ';
             }
         }
     }
@@ -1905,7 +1919,7 @@ void storeModel()
     {
         for (int j = 0; j <= NUM_DICE; ++j)
         {
-            file << std::setprecision(FILE_PRECISION) << leftDistr[i][j] << ' ';
+            file << leftDistr[i][j] << ' ';
         }
     }
 
@@ -1914,7 +1928,7 @@ void storeModel()
         for (int j = 0; j <= MAX_GOODS; ++j)
         {
             file << isFound[i][j] << ' ';
-            if (isFound[i][j]) file << std::setprecision(FILE_PRECISION) << score[i][j] << ' ';
+            if (isFound[i][j]) file << score[i][j] << ' ';
         }
     }
 
@@ -2116,8 +2130,10 @@ void shell()
             Stats stats = findStats(numTests, config, povPlayer, useRank);
 
             std::cout << std::endl;
-            std::cout << "Mean: " << std::fixed << std::setprecision(IO_PRECISION) << stats.mean << std::endl;
-            std::cout << "Stdev: " << std::fixed << std::setprecision(IO_PRECISION) << stats.stdev << std::endl;
+            std::cout << "Mean: " << stats.mean << std::endl;
+            std::cout << "Stdev: " << stats.stdev << std::endl;
+
+            std::cout.precision(useRank ? 1 : 0);
             std::cout << "5th percentile: " << stats.perc5 << std::endl;
             std::cout << "25th percentile: " << stats.perc25 << std::endl;
             std::cout << "50th percentile: " << stats.perc50 << std::endl;
@@ -2129,6 +2145,7 @@ void shell()
                 std::cout << " " << m;
             }
             std::cout << std::endl;
+            std::cout.precision(IO_PRECISION);
 
             if (exportToFile)
             {    
@@ -2161,6 +2178,9 @@ void shell()
 int main()
 {
     generator.seed(time(nullptr));
+
+    std::cout.setf(std::ios::fixed);
+    std::cout.precision(IO_PRECISION);
 
     std::cout << "Normal play or misere play (0 / 1): ";
     std::cin >> MISERE;
