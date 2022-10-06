@@ -31,10 +31,12 @@ const int POINTS_PER_GOOD = 1;
 // Depends on game configuration
 const int ZERO_CODE = 0;
 const int ZERO_ORD_CODE = 0;
-const int VALID_CODES = 30; // Sum_{0 <= k <= NUM_DICE} #ways to partition k into at most NUM_SIDES partitions
-const int STARTS_ORD_CODES[NUM_DICE + 2] = {0, 1, 7, 28, 84, 210, 462, 924}; // 0 <= t <= NUM_DICE + 1: Sum_{0 <= k <= t} #ways to partition k into NUM_SIDES ordered partitions
-const int VALID_ORD_CODES = STARTS_ORD_CODES[NUM_DICE + 1];
+const int NUM_CODES = 30; // Sum_{0 <= k <= NUM_DICE} #ways to partition k into at most NUM_SIDES partitions
+const int STARTS_ORD_CODES[NUM_DICE + 2] = {0, 1, 7, 28, 84, 210, 462, 924}; // 0 <= t <= NUM_DICE + 1: Sum_{0 <= k < t} #ways to partition k into NUM_SIDES ordered partitions
+const int NUM_ORD_CODES = STARTS_ORD_CODES[NUM_DICE + 1];
 const int START_FULL_ORD_CODES = STARTS_ORD_CODES[NUM_DICE];
+const int STARTS_ROLL_SEQS[NUM_DICE + 2] = {0, 1, 7, 43, 259, 1555, 9331, 55987}; // 0 <= t <= NUM_DICE + 1: Sum_{0 <= k < t} NUM_SIDES ^ k
+const int NUM_ROLL_SEQS = STARTS_ROLL_SEQS[NUM_DICE + 1];
 const int NUM_MASKS = 1 << NUM_COMBOS;
 const int INITIAL_MASK = NUM_MASKS - 1;
 const int MAX_GOODS = NUM_COMBOS * GOODS_PER_TURN;
@@ -92,11 +94,11 @@ double occursProb(const Occurs& occurs)
     return prob / pow(NUM_SIDES, numDice);
 }
 
-int diceInCode[VALID_CODES];
-int diceInOrdCode[VALID_ORD_CODES];
-Occurs codeOccurs[VALID_CODES];
-Occurs ordCodeOccurs[VALID_ORD_CODES];
-double ordCodeProb[VALID_ORD_CODES];
+int diceInCode[NUM_CODES];
+int diceInOrdCode[NUM_ORD_CODES];
+Occurs codeOccurs[NUM_CODES];
+Occurs ordCodeOccurs[NUM_ORD_CODES];
+double ordCodeProb[NUM_ORD_CODES];
 
 void genCodesRec(Occurs& occurs, int pos, int dice)
 {
@@ -119,6 +121,25 @@ void genCodesRec(Occurs& occurs, int pos, int dice)
         occurs[pos] = i;
         genCodesRec(occurs, pos + 1, dice - i);
     }
+    occurs[pos] = 0;
+}
+
+int rollSeqToOrdCode[NUM_ROLL_SEQS];
+
+void genRollSeqsRec(Occurs& occurs, int& rollSeq, int dice)
+{
+    if (dice == 0)
+    {
+        rollSeqToOrdCode[rollSeq++] = occursToCode(occurs, true);
+        return;
+    }
+
+    for (int i = 0; i < NUM_SIDES; ++i)
+    {
+        ++occurs[i];
+        genRollSeqsRec(occurs, rollSeq, dice - 1);
+        --occurs[i];
+    }
 }
 
 Occurs remOccurs(const Occurs& occurs, const Occurs& diceOccurs)
@@ -132,28 +153,31 @@ Occurs remOccurs(const Occurs& occurs, const Occurs& diceOccurs)
 }
 
 // Both result in code
-int codeRemOrdCode[VALID_CODES][VALID_ORD_CODES];
-int ordCodeRemOrdCode[VALID_ORD_CODES][VALID_ORD_CODES];
+int codeRemOrdCode[NUM_CODES][NUM_ORD_CODES];
+int ordCodeRemOrdCode[NUM_ORD_CODES][NUM_ORD_CODES];
 
 void genCodes()
 {
     Occurs occurs;
+    occurs.fill(0);
+    int rollSeq = 0;
     for (int i = 0; i <= NUM_DICE; ++i)
     {
         genCodesRec(occurs, 0, i);
+        genRollSeqsRec(occurs, rollSeq, i);
     }
 
-    for (int code = 0; code < VALID_CODES; ++code)
+    for (int code = 0; code < NUM_CODES; ++code)
     {
-        for (int diceOrdCode = 0; diceOrdCode < VALID_ORD_CODES; ++diceOrdCode)
+        for (int diceOrdCode = 0; diceOrdCode < NUM_ORD_CODES; ++diceOrdCode)
         {
             codeRemOrdCode[code][diceOrdCode] = occursToCode(remOccurs(codeOccurs[code], ordCodeOccurs[diceOrdCode]), false);
         }
     }
 
-    for (int ordCode = 0; ordCode < VALID_ORD_CODES; ++ordCode)
+    for (int ordCode = 0; ordCode < NUM_ORD_CODES; ++ordCode)
     {
-        for (int diceOrdCode = 0; diceOrdCode < VALID_ORD_CODES; ++diceOrdCode)
+        for (int diceOrdCode = 0; diceOrdCode < NUM_ORD_CODES; ++diceOrdCode)
         {
             ordCodeRemOrdCode[ordCode][diceOrdCode] = occursToCode(remOccurs(ordCodeOccurs[ordCode], ordCodeOccurs[diceOrdCode]), false);
         }
@@ -296,7 +320,7 @@ protected:
     int templateCode;
 
     int numArgs;
-    std::vector<Target> cache[VALID_ORD_CODES];
+    std::vector<Target> cache[NUM_ORD_CODES];
 
     PermCombo(const std::string& name, int points, const Occurs& occurs, bool isChild):
         Combo(name, points),
@@ -309,7 +333,7 @@ protected:
 
     void buildCache()
     {
-        for (int diceOrdCode = START_FULL_ORD_CODES; diceOrdCode < VALID_ORD_CODES; ++diceOrdCode)
+        for (int diceOrdCode = START_FULL_ORD_CODES; diceOrdCode < NUM_ORD_CODES; ++diceOrdCode)
         {
             cache[diceOrdCode] = rawGetTargets(diceOrdCode);
         }
@@ -454,30 +478,20 @@ void setCombos()
 const int MAX_EXTRA_DICE = 2; // NUM_DICE - min dice in combo
 
 std::mt19937 generator;
-std::uniform_int_distribution<int> diceDistribution(0, NUM_SIDES - 1);
+std::uniform_int_distribution<int> dieDistr(0, NUM_SIDES - 1);
 
 int randDiceRoll()
 {
-    return diceDistribution(generator);
-}
-
-Occurs randOccurs(int numDice)
-{
-    Occurs occurs;
-    occurs.fill(0);
-    for (int i = 0; i < numDice; ++i)
-    {
-        ++occurs[randDiceRoll()];
-    }
-    return occurs;
+    return dieDistr(generator);
 }
 
 int randOrdCode(int numDice = NUM_DICE)
 {
-    return occursToCode(randOccurs(numDice), true);
+    std::uniform_int_distribution<int> rollSeqDistr(STARTS_ROLL_SEQS[numDice], STARTS_ROLL_SEQS[numDice + 1] - 1);
+    return rollSeqToOrdCode[rollSeqDistr(generator)];
 }
 
-double rollsDistr[MAX_EXTRA_DICE + 1][VALID_CODES][MAX_GOODS + 1];
+double rollsDistr[MAX_EXTRA_DICE + 1][NUM_CODES][MAX_GOODS + 1];
 
 void findRollsDistrSingle(int extraDice, int code)
 {
@@ -508,7 +522,7 @@ void findRollsDistr()
     for (int extraDice = 0; extraDice <= MAX_EXTRA_DICE; ++extraDice)
     {
         rollsDistr[extraDice][0][0] = 1;
-        for (int code = 1; code < VALID_CODES; ++code)
+        for (int code = 1; code < NUM_CODES; ++code)
         {
             if (extraDice + diceInCode[code] > NUM_DICE) continue; 
             findRollsDistrSingle(extraDice, code);
@@ -804,8 +818,6 @@ std::vector<Move> getMoveOptionsScored(int free, int goods, int diceOrdCode)
 // Optimized version of getMoveOptionsScored(...)[0]
 Move getMove(int free, int goods, int diceOrdCode)
 {
-    return getMoveOptionsScored(free, goods, diceOrdCode)[0];
-
     Move best;
     for (int i = 0; i < NUM_COMBOS; ++i)
     {
@@ -854,7 +866,7 @@ double getContScore(int free, int goods)
     }
     else
     {
-        for (int diceOrdCode = START_FULL_ORD_CODES; diceOrdCode < VALID_ORD_CODES; ++diceOrdCode)
+        for (int diceOrdCode = START_FULL_ORD_CODES; diceOrdCode < NUM_ORD_CODES; ++diceOrdCode)
         {
             Move move = getMove(free, goods, diceOrdCode);
             score[free][goods] += move.score * ordCodeProb[diceOrdCode];
@@ -1936,7 +1948,7 @@ void storeModel()
 
     for (int i = 0; i <= MAX_EXTRA_DICE; ++i)
     {
-        for (int j = 0; j < VALID_CODES; ++j)
+        for (int j = 0; j < NUM_CODES; ++j)
         {
             if (i + diceInCode[j] > NUM_DICE) continue;
             for (int k = 0; k <= MAX_GOODS; ++k)
@@ -1977,7 +1989,7 @@ bool loadModel()
 
     for (int i = 0; i <= MAX_EXTRA_DICE; ++i)
     {
-        for (int j = 0; j < VALID_CODES; ++j)
+        for (int j = 0; j < NUM_CODES; ++j)
         {
             if (i + diceInCode[j] > NUM_DICE) continue;
             for (int k = 0; k <= MAX_GOODS; ++k)
@@ -2216,7 +2228,7 @@ int main()
     std::cout << "Normal play or misere play (0 / 1): ";
     std::cin >> MISERE;
 
-    std::cout << "Number of trails per state or 0 for exact model (which costs " << VALID_ORD_CODES - START_FULL_ORD_CODES << " trials per state): ";
+    std::cout << "Number of trails per state or 0 for exact model (which costs " << NUM_ORD_CODES - START_FULL_ORD_CODES << " trials per state): ";
     std::cin >> NUM_TRIALS;
 
     genCodes();
