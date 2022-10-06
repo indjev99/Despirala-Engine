@@ -40,7 +40,7 @@ E.g. Three pairs: threes, fives and sixes.
 
 ## User interface
 
-The UI is entirely in the console. It should be fairly intuitive. Moves are written in the format: name of the move, followed by its arguments given as numbers. E.g. "Collect 3", "Two triples 3 5", "Despirala", "Reroll". While collecting the two possible moves are "Continue collecting" and "Stop collecting" (or just "Continue" and "Stop"). Move names are case insensitive.
+The UI is entirely in the console. It should be fairly intuitive. Moves are written in the format: name of the move, followed by its arguments given as numbers. E.g. "Collect 3", "Two triples 3 5", "Despirala", "Reroll". While collecting the two possible moves are "Continue collecting" and "Stop collecting" (or just "Continue" and "Stop"). Move names are case insensitive. To list all currently possible moves use "List options" (or just "List" or "Options").
 
 # Engine
 

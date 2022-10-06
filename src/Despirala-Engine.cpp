@@ -532,6 +532,7 @@ void findLeftDistr()
 #define M_STOP_COLL -1
 #define M_CONT_COLL -2
 #define M_REROLL -3
+#define M_LIST_OPTIONS -99
 #define M_ERROR -100
 
 struct Move
@@ -559,7 +560,7 @@ struct Move
 
     Move(const std::string& name, const std::vector<int>& args);
     
-    std::string toString() const;
+    std::string toString(bool printTemplate = false) const;
 };
 
 bool operator<(const Move& a, const Move& b)
@@ -578,13 +579,17 @@ bool isNumber(const std::string& s)
     return all_of(s.begin(), s.end(), [](char c){ return std::isdigit(c); });
 }
 
-std::string Move::toString() const
+std::string Move::toString(bool printTemplate) const
 {
     std::string s;
     switch (id)
     {
     case M_ERROR:
         s = "Error";
+        break;
+
+    case M_LIST_OPTIONS:
+        s = "Options";
         break;
 
     case M_STOP_COLL:
@@ -605,9 +610,11 @@ std::string Move::toString() const
         if (num != NONUM) s += " " + std::to_string(num + 1);
         else
         {
-            for (int arg : target.args)
+            for (int i = 0; i < (int) target.args.size(); ++i)
             {
-                s += " " + std::to_string(arg + 1);
+                s += " ";
+                if (!printTemplate) s += std::to_string(target.args[i] + 1);
+                else s += 'A' + i;
             }
         }
     }
@@ -619,12 +626,14 @@ Move::Move(const std::string& name, const std::vector<int>& args):
 {
     if (!checkArgs(args)) return;
 
-    if (name == "stop collecting" || name == "stop") id = M_STOP_COLL;
-    else if (name == "continue collecting" || name == "continue") id = M_CONT_COLL;
-    else if (name == "reroll") id = M_REROLL;
+    int nArgs = args.size();
+
+    if ((name == "list options" || name == "options" || name == "list") && nArgs == 0) id = M_LIST_OPTIONS;
+    else if ((name == "stop collecting" || name == "stop") && nArgs == 0) id = M_STOP_COLL;
+    else if ((name == "continue collecting" || name == "continue") && nArgs == 0) id = M_CONT_COLL;
+    else if (name == "reroll" && nArgs == 0) id = M_REROLL;
     else
     {
-        int nArgs = args.size();
         for (int i = 0; i < NUM_COMBOS; ++i)
         {
             int num = combos[i]->getCollectNumber();
@@ -1132,6 +1141,7 @@ void miniSimTurn(State& state)
     switch (id)
     {
     case M_ERROR:
+    case M_LIST_OPTIONS:
     case M_STOP_COLL:
     case M_CONT_COLL:
         assert(false);
@@ -1542,6 +1552,17 @@ void simColl(std::vector<State>& states, int num, int collected, Config& config)
 
         switch (move.id)
         {
+        case M_LIST_OPTIONS:
+        {
+            std::unordered_set<int> mentioned;
+            for (Move& option : getCollMoveOptions(state.goods, left))
+            {
+                if (mentioned.insert(option.id).second) std::cout << option.toString(true) << std::endl;
+            }
+            fail = true;
+            break;
+        }
+
         case M_STOP_COLL:
             if (config.logMode == LOG_WRITE) config.logOut << move.toString() << std::endl;
 
@@ -1578,7 +1599,7 @@ void simColl(std::vector<State>& states, int num, int collected, Config& config)
 
         if (config.manualMoves && fail)
         {
-            std::cout << "Invalid move." << std::endl;
+            if (config.verbose && move.id != M_LIST_OPTIONS) std::cout << "Invalid move." << std::endl;
             fail = false;
             goto moveSelectColl;
         }
@@ -1685,9 +1706,19 @@ void simTurn(std::vector<State>& states, Config& config)
 
     if (!config.manualMoves && config.verbose) std::cout << "Move: " << move.toString() << std::endl;
 
-    int id = move.id;
-    switch (id)
+    switch (move.id)
     {
+    case M_LIST_OPTIONS:
+    {
+        std::unordered_set<int> mentioned;
+        for (Move& option : getMoveOptions(state.free, state.goods, diceOrdCode))
+        {
+            if (mentioned.insert(option.id).second) std::cout << option.toString(true) << std::endl;
+        }
+        fail = true;
+        break;
+    }
+
     case M_ERROR:
     case M_STOP_COLL:
     case M_CONT_COLL:
@@ -1707,12 +1738,12 @@ void simTurn(std::vector<State>& states, Config& config)
         break;
     
     default:
-        if (id >= 0 && id < NUM_COMBOS && isFree(state.free, id))
+        if (move.id >= 0 && move.id < NUM_COMBOS && isFree(state.free, move.id))
         {
             if (config.logMode == LOG_WRITE) config.logOut << move.toString() << std::endl;
 
-            state.free = setUsed(state.free, id);
-            int num = combos[id]->getCollectNumber();
+            state.free = setUsed(state.free, move.id);
+            int num = combos[move.id]->getCollectNumber();
             if (num != NONUM)
             {
                     int collected = ordCodeOccurs[diceOrdCode][num];
@@ -1732,7 +1763,7 @@ void simTurn(std::vector<State>& states, Config& config)
 
     if (config.manualMoves && fail)
     {
-        if (config.verbose) std::cout << "Invalid move" << std::endl;
+        if (config.verbose && move.id == M_LIST_OPTIONS) std::cout << "Invalid move" << std::endl;
         fail = false;
         goto moveSelect;
     }
