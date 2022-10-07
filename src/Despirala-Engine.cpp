@@ -1790,7 +1790,7 @@ void simTurn(std::vector<State>& states, Config& config)
 
     if (config.manualMoves && fail)
     {
-        if (config.verbose && move.id == M_LIST_OPTIONS) std::cout << "Invalid move" << std::endl;
+        if (config.verbose && move.id != M_LIST_OPTIONS) std::cout << "Invalid move" << std::endl;
         fail = false;
         goto moveSelect;
     }
