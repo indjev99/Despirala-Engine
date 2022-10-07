@@ -201,6 +201,8 @@ struct Target
         Target(ordCode, points, {}) {}
 };
 
+const Target NO_TARGET(ZERO_ORD_CODE, 0);
+
 struct Combo
 {
     Combo(const std::string& name, int points):
@@ -233,7 +235,7 @@ struct Combo
     virtual Target getTargetByArgs(const std::vector<int>& args) const
     {
         assert(false);
-        return Target(ZERO_ORD_CODE, 0);
+        return NO_TARGET;
     }
 
     virtual ~Combo() {}
@@ -479,6 +481,15 @@ const int MAX_EXTRA_DICE = 2; // NUM_DICE - min dice in combo
 
 std::mt19937 generator;
 std::uniform_int_distribution<int> dieDistr(0, NUM_SIDES - 1);
+std::uniform_int_distribution<int> rollSeqDistr[NUM_DICE + 1];
+
+void setDistrs()
+{
+    for (int i = 0; i <= NUM_DICE; ++i)
+    {
+        rollSeqDistr[i] = std::uniform_int_distribution<int>(STARTS_ROLL_SEQS[i], STARTS_ROLL_SEQS[i + 1] - 1);
+    }
+}
 
 int randDiceRoll()
 {
@@ -487,8 +498,7 @@ int randDiceRoll()
 
 int randOrdCode(int numDice = NUM_DICE)
 {
-    std::uniform_int_distribution<int> rollSeqDistr(STARTS_ROLL_SEQS[numDice], STARTS_ROLL_SEQS[numDice + 1] - 1);
-    return rollSeqToOrdCode[rollSeqDistr(generator)];
+    return rollSeqToOrdCode[rollSeqDistr[numDice](generator)];
 }
 
 double rollsDistr[MAX_EXTRA_DICE + 1][NUM_CODES][MAX_GOODS + 1];
@@ -555,15 +565,15 @@ struct Move
     Target target;
     double score;
 
-    Move(int id, Target target, double score):
+    Move(int id, const Target& target, double score):
         id(id),
         target(target),
         score(score) {}
 
     Move(int id, double score):
-        Move(id, Target(ZERO_ORD_CODE, 0), score) {}
+        Move(id, NO_TARGET, score) {}
 
-    Move(int id, Target target):
+    Move(int id, const Target& target):
         Move(id, target, worstScore()) {}
 
     Move(int id):
@@ -575,6 +585,19 @@ struct Move
     Move(const std::string& name, const std::vector<int>& args);
     
     std::string toString(bool printTemplate = false) const;
+
+    // Optimization of best = Move(...); instead use best.set(...)
+    void set(int id, const Target& target, double score)
+    {
+        this->id = id;
+        this->target = target;
+        this->score = score;
+    }
+
+    void set(int id, double score)
+    {
+        set(id, NO_TARGET, score);
+    }
 };
 
 bool operator<(const Move& a, const Move& b)
@@ -752,8 +775,8 @@ Move getCollMove(int free, int goods, int num, int left)
     Move best(M_STOP_COLL, getScore(free, goods));
     if (goods > 0 && left > 0)
     {
-        Move option(M_CONT_COLL, getCollContScore(free, goods, num, left));
-        best = std::max(best, option);
+        double score = getCollContScore(free, goods, num, left);
+        if (smartLt(best.score, score)) best.set(M_CONT_COLL, score);
     }
     return best;
 }
@@ -827,8 +850,8 @@ Move getMove(int free, int goods, int diceOrdCode)
         if (num != NONUM)
         {
             int collected = ordCodeOccurs[diceOrdCode][num];
-            Move option(i, collected * (num + 1) + getCollScore(newFree, goods, num, NUM_DICE - collected));
-            best = std::max(best, option);
+            double score = collected * (num + 1) + getCollScore(newFree, goods, num, NUM_DICE - collected);
+            if (smartLt(best.score, score)) best.set(i, score);
         }
         else
         {
@@ -836,15 +859,15 @@ Move getMove(int free, int goods, int diceOrdCode)
             {
                 int newCode = ordCodeRemOrdCode[target.ordCode][diceOrdCode];
                 int extraDice = NUM_DICE - diceInOrdCode[target.ordCode];
-                Move option(i, target, getMoveScore(newFree, goods, newCode, extraDice, target.points));
-                best = std::max(best, option);
+                double score = getMoveScore(newFree, goods, newCode, extraDice, target.points);
+                if (smartLt(best.score, score)) best.set(i, target, score);
             }
         }
     }
     if (goods > 0 && !MISERE)
     {
-        Move option(M_REROLL, getContScore(free, goods - 1));
-        best = std::max(best, option);
+        double score = getContScore(free, goods - 1);
+        if (smartLt(best.score, score)) best.set(M_REROLL, score);
     }
     return best;
 }
@@ -2215,6 +2238,13 @@ void shell()
     }
 }
 
+void init()
+{
+    genCodes();
+    setCombos();
+    setDistrs();
+}
+
 int main()
 {
     generator.seed(time(nullptr));
@@ -2228,8 +2258,7 @@ int main()
     std::cout << "Number of trails per state or 0 for exact model (which costs " << NUM_ORD_CODES - START_FULL_ORD_CODES << " trials per state): ";
     std::cin >> NUM_TRIALS;
 
-    genCodes();
-    setCombos();
+    init();
 
     if (!loadModel())
     {
