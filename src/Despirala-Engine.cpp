@@ -793,16 +793,15 @@ double getCollScore(int free, int goods, int num, int left)
 
 double getMoveScore(int free, int goods, int code, int extraDice, int points)
 {
+    if (code == ZERO_CODE) return points + getScore(free, goods);
+
     double score = 0;
     double succP = 0;
-    for (int i = 0; i <= goods; ++i)
+    for (int i = 1; i <= goods; ++i)
     {
         double currP = rollsDistr[extraDice][code][i];
-        if (currP > 0)
-        {
-            succP += currP;
-            score += currP * getScore(free, goods - i);
-        }
+        succP += currP;
+        score += currP * getScore(free, goods - i);
     }
     score += succP * points;
     score += (1 - succP) * getScore(free, 0);
