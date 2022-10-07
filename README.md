@@ -95,7 +95,7 @@ Mode: 479
 
 Expected score: 445.344
 
-Mean: 442.396 \  
+Mean: 442.396 \
 Stdev: 62.388 \
 5th percentile: 307 \
 25th percentile: 417 \
