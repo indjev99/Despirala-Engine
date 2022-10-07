@@ -52,12 +52,12 @@ or winning chances.
 
 # Competitive play
 
-There is a WIP competitive strategy. It tries to optimize the winning chances/expected rank. It explores the possible moves of the
+There is a competitive strategy. It tries to optimize the winning chances/expected rank. It explores the possible moves of the
 current player and assume the game is played according to the EV maximizing strategy from there on. It then uses the distribution
 of the scores of the other players and the distributions of all the moves to choose the move which results in the best expected rank.
-This is still WIP and works through Monte Carlo simulations of the games (instead of exact computations). To beat the EV maximizing
-strategy it needs to simulate about 10k games per distribution, which is quite slow. Its mean rank then is around 1.443 (it wins 55.7%
-of the games). This is from 4635 tests and the (one-sided) p-value is < 3e-15 (null hypothesis being that it wins 50% of the time).
+It works through Monte Carlo simulations of the games (instead of exact computations). Its win rate against the EV maximizing strategy
+depends on the selected strength (number of simulations and how many moves are considered). It reaches an average rank of about 1.445
+(as the second player against one EV maximizing opponent).
 
 ## Performance stats
 

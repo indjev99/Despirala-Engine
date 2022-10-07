@@ -1304,22 +1304,15 @@ std::vector<double> fixMean(const std::vector<int>& q, double mu)
     return p;
 }
 
-template <class T>
-double getMean(const std::vector<T>& distr)
-{
-    double cnt = 0;
-    double sum = 0;
-    for (int i = 0; i < (int) distr.size(); ++i)
-    {
-        cnt += distr[i];
-        sum += i * distr[i];
-    }
-    return sum / cnt;
-}
+// Competitive mode preset modes
+const int NUM_COMP_MODES = 3;
+const int modeNumSims[NUM_COMP_MODES] = {1000, 5000, 20000};
+const double modeMaxSlack[NUM_COMP_MODES] = {6, 8, 10};
 
 void findOthersCumDistr(std::vector<State>& states, const Config& config)
 {
-    int numSims = config.competitive;
+    int numSims = modeNumSims[config.competitive - 1];
+
     std::vector<double>& othersCumDistr = states[config.player].othersCumDistr;
     othersCumDistr.clear();
 
@@ -1338,7 +1331,7 @@ void findOthersCumDistr(std::vector<State>& states, const Config& config)
         }
         std::vector<double> distr = fixMean(empDistr, expected);
 
-        // std::cerr << " Other: " << getMean(empDistr) << " / " << getMean(distr) << " / " << expected << std::endl;
+        // std::cerr << " Other: " << expected << std::endl;
 
         othersCumDistr.resize(std::max(othersCumDistr.size(), distr.size()), 0);
         double runSum = 0;
@@ -1350,11 +1343,10 @@ void findOthersCumDistr(std::vector<State>& states, const Config& config)
     }
 }
 
-const double MAX_COMP_SLACK = 4;
-
 Move getCompetitiveCollMove(const std::vector<State>& states, int num, int collected, const Config& config)
 {
-    int numSims = config.competitive;
+    int numSims = modeNumSims[config.competitive - 1];
+    double maxSlack = modeMaxSlack[config.competitive - 1];
 
     const State& state = states[config.player];
     int free = state.free;
@@ -1367,7 +1359,7 @@ Move getCompetitiveCollMove(const std::vector<State>& states, int num, int colle
         double expected = state.score + collected * (num + 1) + option.score;
 
         if (bestExpected < 0) bestExpected = expected;
-        else if (std::abs(bestExpected - expected) > MAX_COMP_SLACK) break;
+        else if (std::abs(bestExpected - expected) > maxSlack) break;
 
         std::vector<int> empDistr;
         for (int i = 0; i < numSims; ++i)
@@ -1390,7 +1382,7 @@ Move getCompetitiveCollMove(const std::vector<State>& states, int num, int colle
         option.score = findExpectedRank(distr, state.othersCumDistr);
         best = std::max(best, option);
 
-        // std::cerr << " " << option.toString() << ": " << option.score << " / " << getMean(empDistr) << " / " << getMean(distr) << " / " << expected << std::endl;
+        // std::cerr << " " << option.toString() << ": " << option.score << " / " << expected << std::endl;
     }
 
     return best;
@@ -1398,7 +1390,8 @@ Move getCompetitiveCollMove(const std::vector<State>& states, int num, int colle
 
 Move getCompetitiveMove(const std::vector<State>& states, int diceOrdCode, const Config& config)
 {
-    int numSims = config.competitive;
+    int numSims = modeNumSims[config.competitive - 1];
+    double maxSlack = modeMaxSlack[config.competitive - 1];
 
     const State& state = states[config.player];
     int free = state.free;
@@ -1411,7 +1404,7 @@ Move getCompetitiveMove(const std::vector<State>& states, int diceOrdCode, const
         double expected = state.score + option.score;
 
         if (bestExpected < 0) bestExpected = expected;
-        else if (std::abs(bestExpected - expected) > MAX_COMP_SLACK) break;
+        else if (std::abs(bestExpected - expected) > maxSlack) break;
 
         int id = option.id;
         State newState = state;
@@ -1856,6 +1849,11 @@ std::vector<Result> simGame(Config& config)
     return results;
 }
 
+long long timestamp()
+{
+    return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+}
+
 struct Stats
 {
     double mean = 0;
@@ -1869,7 +1867,7 @@ struct Stats
     std::vector<int> distr;
 };
 
-const bool PRINT_RUN_MEAN = false;
+const int PRINT_PERIOD = 10;
 
 Stats findStats(int n, Config& config, int povPlayer = 0, bool useRank = false)
 {
@@ -1881,6 +1879,7 @@ Stats findStats(int n, Config& config, int povPlayer = 0, bool useRank = false)
 
     double runSumScore = 0;
     double runSumRank = 0;
+    long long prevTime = timestamp();
 
     for (int i = 0; i < n; ++i)
     {
@@ -1888,11 +1887,14 @@ Stats findStats(int n, Config& config, int povPlayer = 0, bool useRank = false)
         int r = !useRank ? results[povPlayer].score : results[povPlayer].rank + config.numPlayers;
         addToDistr(r, stats.distr);
 
-        if (PRINT_RUN_MEAN)
+        runSumScore += results[povPlayer].score;
+        runSumRank += displayRank(results[povPlayer].rank, config);
+        if (timestamp() - prevTime >= PRINT_PERIOD)
         {
-            runSumScore += results[povPlayer].score;
-            runSumRank += displayRank(results[povPlayer].rank, config);
-            std::cerr << i + 1 << ": " << runSumScore / (i + 1) << " " << runSumRank / (i + 1) << std::endl;
+            std::cout << "Games: " << i + 1;
+            std::cout << "  Score: " << runSumScore / (i + 1);
+            std::cout << "  Rank: " << runSumRank / (i + 1) << std::endl;
+            prevTime = timestamp();
         }
     }
 
@@ -2029,11 +2031,6 @@ void computeModel()
     std::cout << std::endl << "Considered " << statesVisCnt << " states." << std::endl;
 }
 
-long long timestamp()
-{
-    return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-}
-
 const std::string help = "Possible commands: play, replay, test, expected, credits, help, exit.";
 const std::string credits = "Made by Emil Indzhev.";
 
@@ -2081,7 +2078,7 @@ void shell()
                 if (numPlayers > 1 && !manualMovesAll[player])
                 {
                     if (numPlayers > 1) std::cout << "Player " << player + 1 << ": ";
-                    std::cout << "Competitive (0 / 1+): ";
+                    std::cout << "Competitive (0 / 1 - " << NUM_COMP_MODES << "): ";
                     std::cin >> competitiveAll[player];
                 }
                 else competitiveAll[player] = 0;
@@ -2147,7 +2144,7 @@ void shell()
                 for (int player = 0; player < numPlayers; ++player)
                 {
                     if (numPlayers > 1) std::cout << "Player " << player + 1 << ": ";
-                    std::cout << "Competitive (0 / 1+): ";
+                    std::cout << "Competitive (0 / 1 - " << NUM_COMP_MODES << "): ";
                     std::cin >> competitiveAll[player];
                 }
             }
