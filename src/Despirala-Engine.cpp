@@ -1029,15 +1029,15 @@ struct Config
 
     std::vector<bool> manualRollsAll;
     std::vector<bool> manualMovesAll;
-    std::vector<int> competitiveAll;
+    std::vector<bool> competitiveAll;
 
     int player;
     bool manualRolls;
     bool manualMoves;
-    int competitive;
+    bool competitive;
 
     Config(int numPlayers = 1, bool verbose = false, bool evalLM = false, int logMode = LOG_NONE, const std::string logName = "",
-           const std::vector<bool>& manualRollsAll = {}, const std::vector<bool>& manualMovesAll = {}, const std::vector<int>& competitiveAll = {}):
+           const std::vector<bool>& manualRollsAll = {}, const std::vector<bool>& manualMovesAll = {}, const std::vector<bool>& competitiveAll = {}):
         numPlayers(numPlayers),
         verbose(verbose),
         evalLM(evalLM),
@@ -1350,13 +1350,12 @@ std::vector<double> fixMean(const std::vector<int>& q, double mu)
 }
 
 // Competitive mode preset modes
-const int NUM_COMP_MODES = 3;
-const int modeNumSims[NUM_COMP_MODES] = {1000, 3000, 10000};
-const double modeMaxSlack[NUM_COMP_MODES] = {6, 8, 10};
+const int COMP_NUM_SIMS = 5000;
+const double COMP_MAX_SLACK = 10;
 
 void findOthersCumDistr(std::vector<State>& states, const Config& config)
 {
-    int numSims = modeNumSims[config.competitive - 1];
+    int numSims = COMP_NUM_SIMS;
 
     std::vector<double>& othersCumDistr = states[config.player].othersCumDistr;
     othersCumDistr.clear();
@@ -1390,8 +1389,8 @@ void findOthersCumDistr(std::vector<State>& states, const Config& config)
 
 Move getCompetitiveCollMove(const std::vector<State>& states, int num, int collected, const Config& config)
 {
-    int numSims = modeNumSims[config.competitive - 1];
-    double maxSlack = modeMaxSlack[config.competitive - 1];
+    int numSims = COMP_NUM_SIMS;
+    double maxSlack = COMP_MAX_SLACK;
 
     const State& state = states[config.player];
     int free = state.free;
@@ -1435,8 +1434,8 @@ Move getCompetitiveCollMove(const std::vector<State>& states, int num, int colle
 
 Move getCompetitiveMove(const std::vector<State>& states, int diceOrdCode, const Config& config)
 {
-    int numSims = modeNumSims[config.competitive - 1];
-    double maxSlack = modeMaxSlack[config.competitive - 1];
+    int numSims = COMP_NUM_SIMS;
+    double maxSlack = COMP_MAX_SLACK;
 
     const State& state = states[config.player];
     int free = state.free;
@@ -2110,12 +2109,12 @@ void shell()
 
             std::vector<bool> manualRollsAll(numPlayers);
             std::vector<bool> manualMovesAll(numPlayers);
-            std::vector<int> competitiveAll(numPlayers);
+            std::vector<bool> competitiveAll(numPlayers);
             bool evalLM;
 
             for (int player = 0; player < numPlayers; ++player)
             {
-                int temp;
+                bool temp;
 
                 if (numPlayers > 1) std::cout << "Player " << player + 1 << ": ";
                 std::cout << "Manual rolls (0 / 1): ";
@@ -2130,10 +2129,11 @@ void shell()
                 if (numPlayers > 1 && !manualMovesAll[player])
                 {
                     if (numPlayers > 1) std::cout << "Player " << player + 1 << ": ";
-                    std::cout << "Competitive (0 / 1 - " << NUM_COMP_MODES << "): ";
-                    std::cin >> competitiveAll[player];
+                    std::cout << "Competitive (0 / 1): ";
+                    std::cin >> temp;
+                    competitiveAll[player] = true;
                 }
-                else competitiveAll[player] = 0;
+                else competitiveAll[player] = false;
             }
 
             std::cout << "Evaluate luck and mistakes (0 / 1): ";
@@ -2172,7 +2172,7 @@ void shell()
                 std::cin >> numPlayers;
             }
 
-            std::vector<int> competitiveAll;
+            std::vector<bool> competitiveAll;
 
             if (numPlayers == 1)
             {
@@ -2195,9 +2195,12 @@ void shell()
 
                 for (int player = 0; player < numPlayers; ++player)
                 {
+                    bool temp;
+
                     if (numPlayers > 1) std::cout << "Player " << player + 1 << ": ";
-                    std::cout << "Competitive (0 / 1 - " << NUM_COMP_MODES << "): ";
-                    std::cin >> competitiveAll[player];
+                    std::cout << "Competitive (0 / 1): ";
+                    std::cin >> temp;
+                    competitiveAll[player] = temp;
                 }
             }
 
