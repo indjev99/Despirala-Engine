@@ -56,7 +56,7 @@ There is a competitive strategy. It tries to optimize the winning chances/expect
 current player and assume the game is played according to the EV maximizing strategy from there on. It then uses the distribution
 of the scores of the other players and the distributions of all the moves to choose the move which results in the best expected rank.
 It works through Monte Carlo simulations of the games (instead of exact computations). Its win rate against the EV maximizing strategy
-depends on the selected strength (number of simulations and how many moves are considered). It reaches an average rank of about 1.445
+depends on the selected strength (number of simulations and how many moves are considered). It reaches an average rank of about 1.45
 (as the second player against one EV maximizing opponent).
 
 ## Performance stats

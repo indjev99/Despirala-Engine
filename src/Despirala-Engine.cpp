@@ -584,7 +584,7 @@ struct Move
 
     Move(const std::string& name, const std::vector<int>& args);
     
-    std::string toString(bool printTemplate = false) const;
+    std::string toString(bool printBase = false) const;
 
     // Optimization of best = Move(...); instead use best.set(...)
     void set(int id, const Target& target, double score)
@@ -616,7 +616,7 @@ bool isNumber(const std::string& s)
     return all_of(s.begin(), s.end(), [](char c){ return std::isdigit(c); });
 }
 
-std::string Move::toString(bool printTemplate) const
+std::string Move::toString(bool printBase) const
 {
     std::string s;
     switch (id)
@@ -645,13 +645,11 @@ std::string Move::toString(bool printTemplate) const
         s = combos[id]->getName();
         int num = combos[id]->getCollectNumber();
         if (num != NONUM) s += " " + std::to_string(num + 1);
-        else
+        else if (!printBase)
         {
             for (int i = 0; i < (int) target.args.size(); ++i)
             {
-                s += " ";
-                if (!printTemplate) s += std::to_string(target.args[i] + 1);
-                else s += 'A' + i;
+                s += " " + std::to_string(target.args[i] + 1);
             }
         }
     }
