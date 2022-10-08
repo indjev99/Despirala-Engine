@@ -729,11 +729,32 @@ std::vector<Move> getCollMoveOptions(int goods, int left)
     return options;
 }
 
-bool isFound[NUM_MASKS][MAX_GOODS + 1];
-double score[NUM_MASKS][MAX_GOODS + 1];
+struct ScoreOption
+{
+    ScoreOption(): score(-1) {}
 
-bool isFoundColl[NUM_MASKS][MAX_GOODS + 1][NUM_SIDES][NUM_DICE + 1];
-double collScore[NUM_MASKS][MAX_GOODS + 1][NUM_SIDES][NUM_DICE + 1];
+    bool isFound() const
+    {
+        return score >= 0;
+    }
+
+    double get() const
+    {
+        return score;
+    }
+
+    void set(double val)
+    {
+        score = val;
+    }
+
+private:
+
+    double score;
+};
+
+ScoreOption expScore[NUM_MASKS][MAX_GOODS + 1];
+ScoreOption expCollScore[NUM_MASKS][MAX_GOODS + 1][NUM_SIDES][NUM_DICE + 1];
 
 double getScore(int free, int goods);
 double getContScore(int free, int goods);
@@ -781,12 +802,12 @@ Move getCollMove(int free, int goods, int num, int left)
 
 double getCollScore(int free, int goods, int num, int left)
 {
-    if (!isFoundColl[free][goods][num][left])
+    ScoreOption& currScore = expCollScore[free][goods][num][left];
+    if (!currScore.isFound())
     {
-        isFoundColl[free][goods][num][left] = true;
-        collScore[free][goods][num][left] = getCollMove(free, goods, num, left).score;
+        currScore.set(getCollMove(free, goods, num, left).score);
     }
-    return collScore[free][goods][num][left];
+    return currScore.get();
 }
 
 double getMoveScore(int free, int goods, int code, int extraDice, int points)
@@ -873,15 +894,20 @@ int statesVisCnt = 0;
 
 double getContScore(int free, int goods)
 {
-    if (isFound[free][goods]) return score[free][goods];
-    isFound[free][goods] = true;
-    if (free == 0) score[free][goods] = goods * POINTS_PER_GOOD;
+    ScoreOption& currScore = expScore[free][goods];
+    if (currScore.isFound()) return currScore.get();
+
+    ++statesVisCnt;
+    if (statesVisCnt % 10000 == 0) std::cout << "." << std::flush;
+
+    double score = 0;
+    if (free == 0) score = goods * POINTS_PER_GOOD;
     else if (NUM_TRIALS > 0)
     {
         for (int t = 0; t < NUM_TRIALS; ++t)
         {
             Move move = getMove(free, goods, randOrdCode());
-            score[free][goods] += move.score / NUM_TRIALS;
+            score += move.score / NUM_TRIALS;
         }
     }
     else
@@ -889,12 +915,11 @@ double getContScore(int free, int goods)
         for (int diceOrdCode = START_FULL_ORD_CODES; diceOrdCode < NUM_ORD_CODES; ++diceOrdCode)
         {
             Move move = getMove(free, goods, diceOrdCode);
-            score[free][goods] += move.score * ordCodeProb[diceOrdCode];
+            score += move.score * ordCodeProb[diceOrdCode];
         }
     }
-    ++statesVisCnt;
-    if (statesVisCnt % 10000 == 0) std::cout << "." << std::flush;
-    return score[free][goods];
+    currScore.set(score);
+    return score;
 }
 
 double getScore(int free, int goods)
@@ -1326,7 +1351,7 @@ std::vector<double> fixMean(const std::vector<int>& q, double mu)
 
 // Competitive mode preset modes
 const int NUM_COMP_MODES = 3;
-const int modeNumSims[NUM_COMP_MODES] = {1000, 5000, 20000};
+const int modeNumSims[NUM_COMP_MODES] = {1000, 3000, 10000};
 const double modeMaxSlack[NUM_COMP_MODES] = {6, 8, 10};
 
 void findOthersCumDistr(std::vector<State>& states, const Config& config)
@@ -1992,8 +2017,8 @@ void storeModel()
     {
         for (int j = 0; j <= MAX_GOODS; ++j)
         {
-            file << isFound[i][j] << ' ';
-            if (isFound[i][j]) file << score[i][j] << ' ';
+            file << expScore[i][j].isFound() << ' ';
+            if (expScore[i][j].isFound()) file << expScore[i][j].get() << ' ';
         }
     }
 
@@ -2029,12 +2054,19 @@ bool loadModel()
         }
     }
 
+    bool isFound;
+    double score;
+
     for (int i = 0; i < NUM_MASKS; ++i)
     {
         for (int j = 0; j <= MAX_GOODS; ++j)
         {
-            file >> isFound[i][j];
-            if (isFound[i][j]) file >> score[i][j];
+            file >> isFound;
+            if (isFound)
+            {
+                file >> score;
+                expScore[i][j].set(score);
+            }
         }
     }
 
