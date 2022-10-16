@@ -1483,7 +1483,7 @@ Move getCompetitiveMove(const std::vector<State>& states, int diceOrdCode, const
         option.score = findExpectedRank(distr, state.othersCumDistr);
         best = std::max(best, option);
 
-        // std::cerr << " " << option.toString() << ": " << option.score << " / " << getMean(empDistr) << " / " << getMean(distr) << " / " << expected << std::endl;
+        // std::cerr << " " << option.toString() << ": " << option.score << " / " << expected << std::endl;
     }
 
     return best;
@@ -2131,7 +2131,7 @@ void shell()
                     if (numPlayers > 1) std::cout << "Player " << player + 1 << ": ";
                     std::cout << "Competitive (0 / 1): ";
                     std::cin >> temp;
-                    competitiveAll[player] = true;
+                    competitiveAll[player] = temp;
                 }
                 else competitiveAll[player] = false;
             }
