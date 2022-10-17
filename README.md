@@ -55,8 +55,11 @@ or winning chances.
 There is a competitive strategy. It tries to optimize the winning chances/expected rank. It explores the possible moves of the
 current player and assume the game is played according to the EV maximizing strategy from there on. It then uses the distribution
 of the scores of the other players and the distributions of all the moves to choose the move which results in the best expected rank.
-It works through Monte Carlo simulations of the games (instead of exact computations). Its win rate against the EV maximizing strategy
-is around 55% as the second player, if we ignore draws. (Its average rank from over 30k games is 1.449 as the second player).
+It works through Monte Carlo simulations of the games (instead of exact computations).
+
+Its win rate, if we count draws as half-wins, against the EV maximizing strategy is around 55% as the second player (its average rank
+from over 30k games is 1.449). Simlarly, as the first player it has a win rate around 54% (its average rank from over 30k games is 1.462).
+The strategy's win rate against itself is about 51% as the second player (its average rank from over 30k games is 1.492).
 
 ## Performance stats
 
