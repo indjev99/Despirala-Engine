@@ -3,6 +3,7 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+#include <array>
 #include <vector>
 #include <string>
 #include <unordered_map>
@@ -14,32 +15,32 @@
 #include <time.h>
 #include <assert.h>
 
-const double IO_EPS = 5e-4;
-const int IO_PRECISION = 3;
-const int FILE_PRECISION = 9;
+constexpr double IO_EPS = 5e-4;
+constexpr int IO_PRECISION = 3;
+constexpr int FILE_PRECISION = 9;
 
-const double EPS = 1e-9;
-const double INF = 1e9;
+constexpr double EPS = 1e-9;
+constexpr double INF = 1e9;
 
 // Game configuration
-const int NUM_DICE = 6;
-const int NUM_SIDES = 6;
-const int NUM_COMBOS = 14;
-const int GOODS_PER_TURN = 5;
-const int POINTS_PER_GOOD = 1;
+constexpr int NUM_DICE = 6;
+constexpr int NUM_SIDES = 6;
+constexpr int NUM_COMBOS = 14;
+constexpr int GOODS_PER_TURN = 5;
+constexpr int POINTS_PER_GOOD = 1;
 
 // Depends on game configuration
-const int ZERO_CODE = 0;
-const int ZERO_ORD_CODE = 0;
-const int NUM_CODES = 30; // Sum_{0 <= k <= NUM_DICE} #ways to partition k into at most NUM_SIDES partitions
-const int STARTS_ORD_CODES[NUM_DICE + 2] = {0, 1, 7, 28, 84, 210, 462, 924}; // 0 <= t <= NUM_DICE + 1: Sum_{0 <= k < t} #ways to partition k into NUM_SIDES ordered partitions
-const int NUM_ORD_CODES = STARTS_ORD_CODES[NUM_DICE + 1];
-const int START_FULL_ORD_CODES = STARTS_ORD_CODES[NUM_DICE];
-const int STARTS_ROLL_SEQS[NUM_DICE + 2] = {0, 1, 7, 43, 259, 1555, 9331, 55987}; // 0 <= t <= NUM_DICE + 1: Sum_{0 <= k < t} NUM_SIDES ^ k
-const int NUM_ROLL_SEQS = STARTS_ROLL_SEQS[NUM_DICE + 1];
-const int NUM_MASKS = 1 << NUM_COMBOS;
-const int INITIAL_MASK = NUM_MASKS - 1;
-const int MAX_GOODS = NUM_COMBOS * GOODS_PER_TURN;
+constexpr int ZERO_CODE = 0;
+constexpr int ZERO_ORD_CODE = 0;
+constexpr int NUM_CODES = 30; // Sum_{0 <= k <= NUM_DICE} #ways to partition k into at most NUM_SIDES partitions
+constexpr int STARTS_ORD_CODES[NUM_DICE + 2] = {0, 1, 7, 28, 84, 210, 462, 924}; // 0 <= t <= NUM_DICE + 1: Sum_{0 <= k < t} #ways to partition k into NUM_SIDES ordered partitions
+constexpr int NUM_ORD_CODES = STARTS_ORD_CODES[NUM_DICE + 1];
+constexpr int START_FULL_ORD_CODES = STARTS_ORD_CODES[NUM_DICE];
+constexpr int STARTS_ROLL_SEQS[NUM_DICE + 2] = {0, 1, 7, 43, 259, 1555, 9331, 55987}; // 0 <= t <= NUM_DICE + 1: Sum_{0 <= k < t} NUM_SIDES ^ k
+constexpr int NUM_ROLL_SEQS = STARTS_ROLL_SEQS[NUM_DICE + 1];
+constexpr int NUM_MASKS = 1 << NUM_COMBOS;
+constexpr int INITIAL_MASK = NUM_MASKS - 1;
+constexpr int MAX_GOODS = NUM_COMBOS * GOODS_PER_TURN;
 
 int NUM_TRIALS; // Trials per state
 bool MISERE; // Normal play or misere play
@@ -242,8 +243,8 @@ struct Combo
 
 protected:
 
-    const std::string name;
-    const int points;
+    std::string name;
+    int points;
 };
 
 struct CollectCombo : Combo
@@ -477,7 +478,7 @@ void setCombos()
     };
 }
 
-const int MAX_EXTRA_DICE = 2; // NUM_DICE - min dice in combo
+constexpr int MAX_EXTRA_DICE = 2; // NUM_DICE - min dice in combo
 
 std::mt19937 generator;
 std::uniform_int_distribution<int> dieDistr(0, NUM_SIDES - 1);
@@ -932,7 +933,7 @@ double getInitialScore()
     return getScore(INITIAL_MASK, 0);
 }
 
-const int NUM_REASONS = 3;
+constexpr int NUM_REASONS = 3;
 
 #define R_LUCK 0
 #define R_MISTAKE 1
@@ -1350,8 +1351,8 @@ std::vector<double> fixMean(const std::vector<int>& q, double mu)
 }
 
 // Competitive mode preset modes
-const int COMP_NUM_SIMS = 5000;
-const double COMP_MAX_SLACK = 10;
+constexpr int COMP_NUM_SIMS = 5000;
+constexpr double COMP_MAX_SLACK = 10;
 
 void findOthersCumDistr(std::vector<State>& states, const Config& config)
 {
@@ -1911,7 +1912,7 @@ struct Stats
     std::vector<int> distr;
 };
 
-const int PRINT_PERIOD = 10;
+constexpr int PRINT_PERIOD = 10;
 
 Stats findStats(int n, Config& config, int povPlayer = 0, bool useRank = false)
 {
