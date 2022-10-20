@@ -933,6 +933,13 @@ double getInitialScore()
     return getScore(INITIAL_MASK, 0);
 }
 
+void printSigned(double val)
+{
+    if (std::abs(val) >= IO_EPS) std::cout.setf(std::ios::showpos);
+    std::cout << val << std::endl;
+    std::cout.unsetf(std::ios::showpos);
+}
+
 constexpr int NUM_REASONS = 3;
 
 #define R_LUCK 0
@@ -974,10 +981,9 @@ struct State
         newExpScore += score;
         int mult = !MISERE ? 1 : -1;
         double delta = newExpScore - expScore;
-        bool print = reason == R_LUCK || fabs(delta) > IO_EPS;
+        bool print = reason == R_LUCK || fabs(delta) >= IO_EPS;
         if (print)
         {
-            std::cout.setf(std::ios::showpos);
             if (reason == R_LUCK && mult * delta > 0) std::cout << "Good luck: ";
             else if (reason == R_LUCK && mult * delta < 0) std::cout << "Bad luck: ";
             else if (reason == R_MISTAKE && -mult * delta < 1) std::cout << "Inaccuracy: ";
@@ -986,9 +992,8 @@ struct State
             else if (reason == R_MISTAKE && -mult * delta >= 10) std::cout << "Massive blunder: ";
             else if (reason == R_NONE) std::cout << "(Warning) No reason: ";
             else std::cout << "(Error) Invalid reason " << reason << ": ";
-            std::cout << delta << std::endl;
+            printSigned(delta);
             if (reason == R_MISTAKE && bestMvName != "") std::cout << "Best move was: " << bestMvName << std::endl;
-            std::cout.unsetf(std::ios::showpos);
         }
         scoreByReason[reason] += delta;
         expScore = newExpScore;
@@ -998,17 +1003,16 @@ struct State
     {
         std::cout << "Baseline score: " << getInitialScore() << std::endl;
 
-        std::cout.setf(std::ios::showpos);
-        std::cout << "Score due to luck: " << scoreByReason[R_LUCK] << std::endl;
-        std::cout.unsetf(std::ios::showpos);
+        std::cout << "Score due to luck: ";
+        printSigned(scoreByReason[R_LUCK]);
 
-        std::cout << "Score due to mistakes: " << scoreByReason[R_MISTAKE] << std::endl;
+        std::cout << "Score due to mistakes: ";
+        printSigned(scoreByReason[R_MISTAKE]);
 
-        if (fabs(scoreByReason[R_NONE]) > IO_EPS)
+        if (fabs(scoreByReason[R_NONE]) >= IO_EPS)
         {
-            std::cout.setf(std::ios::showpos);
-            std::cout << "(Warning) Score for no reason: " << std::showpos << scoreByReason[R_NONE] << std::endl;
-            std::cout.unsetf(std::ios::showpos);
+            std::cout << "(Warning) Score for no reason: ";
+            printSigned(scoreByReason[R_NONE]);
         }
     }
 };
@@ -1378,11 +1382,12 @@ void findOthersCumDistr(std::vector<State>& states, const Config& config)
 
         // std::cerr << " Other: " << expected << std::endl;
 
-        othersCumDistr.resize(std::max(othersCumDistr.size(), distr.size()), 0);
+        double m = othersCumDistr.empty() ? 0 : othersCumDistr.back();
+        othersCumDistr.resize(std::max(othersCumDistr.size(), distr.size()), m);
         double runSum = 0;
-        for (int i = 0; i < (int) distr.size(); ++i)
+        for (int i = 0; i < (int) othersCumDistr.size(); ++i)
         {
-            runSum += distr[i];
+            if (i < (int) distr.size()) runSum += distr[i];
             othersCumDistr[i] += runSum;
         }
     }
