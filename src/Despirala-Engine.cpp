@@ -943,9 +943,13 @@ double getInitialScore()
 
 void printSigned(double val)
 {
-    if (std::abs(val) >= IO_EPS) std::cout.setf(std::ios::showpos);
-    std::cout << val << std::endl;
-    std::cout.unsetf(std::ios::showpos);
+    if (std::abs(val) >= IO_EPS)
+    {
+        std::cout.setf(std::ios::showpos);
+        std::cout << val << std::endl;
+        std::cout.unsetf(std::ios::showpos);
+    }
+    else std::cout << 0.0 << std::endl;
 }
 
 constexpr int NUM_REASONS = 5;
@@ -1002,16 +1006,16 @@ struct State
     {
         int mult = !MISERE ? 1 : -1;
         double delta = newExpScore - expScore;
-        bool print = (reason == R_LUCK || fabs(delta) >= IO_EPS) && reason != R_COMP_OTHERS;
+        bool print = (reason == R_LUCK || std::abs(delta) >= IO_EPS) && reason != R_COMP_OTHERS;
         if (print)
         {
             double ratio = (!competitive ? 1 : COMP_RATIO * (numPlayers - 1));
             double mistake = MISTAKE / ratio;
             double blunder = BLUNDER / ratio;
             double massive = MASSIVE / ratio;
-            if (reason == R_LUCK && mult * delta > 0) std::cout << "Good luck: ";
-            else if (reason == R_LUCK && mult * delta < 0) std::cout << "Bad luck: ";
-            else if (reason == R_LUCK && mult * delta == 0) std::cout << "Neutral luck: ";
+            if (reason == R_LUCK && mult * delta >= IO_EPS) std::cout << "Good luck: ";
+            else if (reason == R_LUCK && mult * delta <= -IO_EPS) std::cout << "Bad luck: ";
+            else if (reason == R_LUCK && std::abs(mult * delta) < IO_EPS) std::cout << "Neutral luck: ";
             else if (reason == R_MISTAKE && -mult * delta < mistake) std::cout << "Inaccuracy: ";
             else if (reason == R_MISTAKE && -mult * delta < blunder) std::cout << "Mistake: ";
             else if (reason == R_MISTAKE && -mult * delta < massive) std::cout << "Blunder: ";
