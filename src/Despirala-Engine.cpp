@@ -971,26 +971,10 @@ struct State
     int goods;
     int score;
 
-    bool competitive;
-    int numPlayers;
-
-    double expScore;
-    double scoreByReason[NUM_REASONS];
-
-    std::vector<double> othersCumDistr;
-
-    std::map<std::vector<int>, double> descrToExpRank;
-
-    State(bool competitive = false, int numPlayers = 1):
+    State():
         free(INITIAL_MASK),
         goods(0),
-        score(0),
-        competitive(competitive),
-        numPlayers(numPlayers),
-        expScore(!competitive ? getInitialScore() : 0)
-    {
-        std::fill(scoreByReason, scoreByReason + NUM_REASONS, 0);
-    }
+        score(0) {}
 
     int getTurn()
     {
@@ -1000,65 +984,6 @@ struct State
             if ((free >> i & 1) == 0) ++turn;
         }
         return turn;
-    }
-
-    void updateExpScore(double newExpScore, int reason, const std::string& bestMvName = "")
-    {
-        int mult = !MISERE ? 1 : -1;
-        double delta = newExpScore - expScore;
-        bool print = (reason == R_LUCK || std::abs(delta) >= IO_EPS) && reason != R_COMP_OTHERS;
-        if (print)
-        {
-            double ratio = (!competitive ? 1 : COMP_RATIO * (numPlayers - 1));
-            double mistake = MISTAKE / ratio;
-            double blunder = BLUNDER / ratio;
-            double massive = MASSIVE / ratio;
-            if (reason == R_LUCK && mult * delta >= IO_EPS) std::cout << "Good luck: ";
-            else if (reason == R_LUCK && mult * delta <= -IO_EPS) std::cout << "Bad luck: ";
-            else if (reason == R_LUCK && std::abs(mult * delta) < IO_EPS) std::cout << "Neutral luck: ";
-            else if (reason == R_MISTAKE && -mult * delta < mistake) std::cout << "Inaccuracy: ";
-            else if (reason == R_MISTAKE && -mult * delta < blunder) std::cout << "Mistake: ";
-            else if (reason == R_MISTAKE && -mult * delta < massive) std::cout << "Blunder: ";
-            else if (reason == R_MISTAKE && -mult * delta >= massive) std::cout << "Massive blunder: ";
-            else if (reason == R_COMP_OPP) std::cout << "Competitive opportunity: ";
-            else if (reason == R_NONE) std::cout << "(Warning) No reason: ";
-            else std::cout << "(Error) Invalid reason " << reason << ": ";
-            printSigned(delta);
-            if (reason == R_MISTAKE && bestMvName != "") std::cout << "Best move was: " << bestMvName << std::endl;
-        }
-        scoreByReason[reason] += delta;
-        expScore = newExpScore;
-    }
-
-    void printScoreByReason()
-    {
-        std::string word = !competitive ? "Score" : "Rank";
-
-        if (!competitive) std::cout << "Baseline score: " << getInitialScore() << std::endl;
-
-        if (competitive)
-        {
-            std::cout << word << " due to other players: ";
-            printSigned(scoreByReason[R_COMP_OTHERS]);
-        }
-
-        std::cout << word << " due to luck: ";
-        printSigned(scoreByReason[R_LUCK]);
-
-        if (competitive)
-        {
-            std::cout << word << " due to competitive opportunities: ";
-            printSigned(scoreByReason[R_COMP_OPP]);
-        }
-
-        std::cout << word << " due to mistakes: ";
-        printSigned(scoreByReason[R_MISTAKE]);
-
-        if (fabs(scoreByReason[R_NONE]) >= IO_EPS)
-        {
-            std::cout << "(Warning) " << word << " due to no reason: ";
-            printSigned(scoreByReason[R_NONE]);
-        }
     }
 };
 
@@ -1400,11 +1325,94 @@ std::vector<double> fixMean(const std::vector<int>& q, double mu)
     return p;
 }
 
+struct MetaState
+{
+    State state;
+
+    bool competitive;
+    int numPlayers;
+
+    double expScore;
+    double scoreByReason[NUM_REASONS];
+
+    std::vector<double> othersCumDistr;
+
+    std::map<std::vector<int>, double> descrToExpRank;
+
+    MetaState(bool competitive = false, int numPlayers = 1):
+        state(),
+        competitive(competitive),
+        numPlayers(numPlayers),
+        expScore(!competitive ? getInitialScore() : 0)
+    {
+        std::fill(scoreByReason, scoreByReason + NUM_REASONS, 0);
+    }
+
+    void updateExpScore(double newExpScore, int reason, const std::string& bestMvName = "")
+    {
+        int mult = !MISERE ? 1 : -1;
+        double delta = newExpScore - expScore;
+        bool print = (reason == R_LUCK || std::abs(delta) >= IO_EPS) && reason != R_COMP_OTHERS;
+        if (print)
+        {
+            double ratio = (!competitive ? 1 : COMP_RATIO * (numPlayers - 1));
+            double mistake = MISTAKE / ratio;
+            double blunder = BLUNDER / ratio;
+            double massive = MASSIVE / ratio;
+            if (reason == R_LUCK && mult * delta >= IO_EPS) std::cout << "Good luck: ";
+            else if (reason == R_LUCK && mult * delta <= -IO_EPS) std::cout << "Bad luck: ";
+            else if (reason == R_LUCK && std::abs(mult * delta) < IO_EPS) std::cout << "Neutral luck: ";
+            else if (reason == R_MISTAKE && -mult * delta < mistake) std::cout << "Inaccuracy: ";
+            else if (reason == R_MISTAKE && -mult * delta < blunder) std::cout << "Mistake: ";
+            else if (reason == R_MISTAKE && -mult * delta < massive) std::cout << "Blunder: ";
+            else if (reason == R_MISTAKE && -mult * delta >= massive) std::cout << "Massive blunder: ";
+            else if (reason == R_COMP_OPP) std::cout << "Competitive opportunity: ";
+            else if (reason == R_NONE) std::cout << "(Warning) No reason: ";
+            else std::cout << "(Error) Invalid reason " << reason << ": ";
+            printSigned(delta);
+            if (reason == R_MISTAKE && bestMvName != "") std::cout << "Best move was: " << bestMvName << std::endl;
+        }
+        scoreByReason[reason] += delta;
+        expScore = newExpScore;
+    }
+
+    void printScoreByReason()
+    {
+        std::string word = !competitive ? "Score" : "Rank";
+
+        if (!competitive) std::cout << "Baseline score: " << getInitialScore() << std::endl;
+
+        if (competitive)
+        {
+            std::cout << word << " due to other players: ";
+            printSigned(scoreByReason[R_COMP_OTHERS]);
+        }
+
+        std::cout << word << " due to luck: ";
+        printSigned(scoreByReason[R_LUCK]);
+
+        if (competitive)
+        {
+            std::cout << word << " due to competitive opportunities: ";
+            printSigned(scoreByReason[R_COMP_OPP]);
+        }
+
+        std::cout << word << " due to mistakes: ";
+        printSigned(scoreByReason[R_MISTAKE]);
+
+        if (fabs(scoreByReason[R_NONE]) >= IO_EPS)
+        {
+            std::cout << "(Warning) " << word << " due to no reason: ";
+            printSigned(scoreByReason[R_NONE]);
+        }
+    }
+};
+
 // Competitive mode preset modes
 constexpr int COMP_NUM_SIMS = 5000;
 constexpr double COMP_MAX_SLACK = 10;
 
-void findOthersCumDistr(std::vector<State>& states, const Config& config)
+void findOthersCumDistr(std::vector<MetaState>& states, const Config& config)
 {
     std::vector<double>& othersCumDistr = states[config.player].othersCumDistr;
     othersCumDistr.clear();
@@ -1413,7 +1421,7 @@ void findOthersCumDistr(std::vector<State>& states, const Config& config)
     {
         if (other == config.player) continue;
 
-        State& otherState = states[other];
+        State& otherState = states[other].state;
 
         std::vector<int> empDistr;
         double expected = otherState.score + getScore(otherState.free, otherState.goods);
@@ -1437,8 +1445,10 @@ void findOthersCumDistr(std::vector<State>& states, const Config& config)
     }
 }
 
-double getCompetitiveScore(const State& state, double expected)
+double getCompetitiveScore(const MetaState& metaState, double expected)
 {
+    const State& state = metaState.state;
+
     std::vector<int> empDistr;
     for (int i = 0; i < COMP_NUM_SIMS; ++i)
     {
@@ -1449,14 +1459,16 @@ double getCompetitiveScore(const State& state, double expected)
 
     std::vector<double> distr = fixMean(empDistr, expected);
 
-    return getExpectedRank(distr, state.othersCumDistr);
+    return getExpectedRank(distr, metaState.othersCumDistr);
 }
 
-double getCompetitiveCollMoveScore(State& state, int num, int collected, const Move& move, double expected)
+double getCompetitiveCollMoveScore(MetaState& metaState, int num, int collected, const Move& move, double expected)
 {
+    const State& state = metaState.state;
+
     std::vector<int> descr = move.getDescr();
-    auto it = state.descrToExpRank.find(descr);
-    if (it != state.descrToExpRank.end())
+    auto it = metaState.descrToExpRank.find(descr);
+    if (it != metaState.descrToExpRank.end())
     {
         return it-> second;
     }
@@ -1479,16 +1491,18 @@ double getCompetitiveCollMoveScore(State& state, int num, int collected, const M
 
     std::vector<double> distr = fixMean(empDistr, expected);
 
-    double rank = getExpectedRank(distr, state.othersCumDistr);
-    state.descrToExpRank.insert({descr, rank});
+    double rank = getExpectedRank(distr, metaState.othersCumDistr);
+    metaState.descrToExpRank.insert({descr, rank});
     return rank;
 }
 
-double getCompetitiveMoveScore(State& state, int diceOrdCode, const Move& move, double expected)
+double getCompetitiveMoveScore(MetaState& metaState, int diceOrdCode, const Move& move, double expected)
 {
+    const State& state = metaState.state;
+
     std::vector<int> descr = move.getDescr();
-    auto it = state.descrToExpRank.find(descr);
-    if (it != state.descrToExpRank.end())
+    auto it = metaState.descrToExpRank.find(descr);
+    if (it != metaState.descrToExpRank.end())
     {
         return it-> second;
     }
@@ -1523,14 +1537,14 @@ double getCompetitiveMoveScore(State& state, int diceOrdCode, const Move& move, 
 
     std::vector<double> distr = fixMean(empDistr, expected);
 
-    double rank = getExpectedRank(distr, state.othersCumDistr);
-    state.descrToExpRank.insert({descr, rank});
+    double rank = getExpectedRank(distr, metaState.othersCumDistr);
+    metaState.descrToExpRank.insert({descr, rank});
     return rank;
 }
 
-Move getCompetitiveCollMove(std::vector<State>& states, int num, int collected, const Config& config)
+Move getCompetitiveCollMove(MetaState& metaState, int num, int collected)
 {
-    State& state = states[config.player];
+    const State& state = metaState.state;
 
     Move best;
     double bestExpected = -1;
@@ -1541,7 +1555,7 @@ Move getCompetitiveCollMove(std::vector<State>& states, int num, int collected, 
         if (bestExpected < 0) bestExpected = expected;
         else if (std::abs(bestExpected - expected) > COMP_MAX_SLACK) break;
 
-        option.score = getCompetitiveCollMoveScore(state, num, collected, option, expected);
+        option.score = getCompetitiveCollMoveScore(metaState, num, collected, option, expected);
         best = std::max(best, option);
 
         // std::cerr << " " << option.toString() << ": " << option.score << " / " << expected << std::endl;
@@ -1550,9 +1564,9 @@ Move getCompetitiveCollMove(std::vector<State>& states, int num, int collected, 
     return best;
 }
 
-Move getCompetitiveMove(std::vector<State>& states, int diceOrdCode, const Config& config)
+Move getCompetitiveMove(MetaState& metaState, int diceOrdCode)
 {
-    State& state = states[config.player];
+    const State& state = metaState.state;
 
     Move best;
     double bestExpected = -1;
@@ -1563,7 +1577,7 @@ Move getCompetitiveMove(std::vector<State>& states, int diceOrdCode, const Confi
         if (bestExpected < 0) bestExpected = expected;
         else if (std::abs(bestExpected - expected) > COMP_MAX_SLACK) break;
 
-        option.score = getCompetitiveMoveScore(state, diceOrdCode, option, expected);
+        option.score = getCompetitiveMoveScore(metaState, diceOrdCode, option, expected);
         best = std::max(best, option);
 
         // std::cerr << " " << option.toString() << ": " << option.score << " / " << expected << std::endl;
@@ -1659,33 +1673,33 @@ int chooseNumNewHits(int num, int left, Config& config)
     return newHits;
 }
 
-void simColl(std::vector<State>& states, int num, int collected, Config& config)
+void simColl(MetaState& metaState, int num, int collected, Config& config)
 {
-    State& state = states[config.player];
+    State& state = metaState.state;
 
     bool first = true;
     bool cont = true;
     bool fail = false;
     while (cont)
     {
-        state.descrToExpRank.clear();
+        metaState.descrToExpRank.clear();
 
         cont = false;
         int left = NUM_DICE - collected;
 
         Move bestSoloMove = getCollMove(state.free, state.goods, num, left);
 
-        if ((config.competitive || config.evalCompLM) && first) state.descrToExpRank.insert({bestSoloMove.getDescr(), state.expScore});
+        if ((config.competitive || config.evalCompLM) && first) metaState.descrToExpRank.insert({bestSoloMove.getDescr(), metaState.expScore});
 
-        Move bestCompMove = config.competitive || config.evalCompLM ? getCompetitiveCollMove(states, num, collected, config) : Move();
+        Move bestCompMove = config.competitive || config.evalCompLM ? getCompetitiveCollMove(metaState, num, collected) : Move();
         Move bestMove = config.evalCompLM ? bestCompMove : bestSoloMove;
 
         if (config.evalLM)
         {
             double expected = state.score + collected * (num + 1) + bestSoloMove.score;
-            if (config.evalCompLM) expected = getCompetitiveCollMoveScore(state, num, collected, bestSoloMove, expected);
-            state.updateExpScore(expected, !first ? R_LUCK : R_NONE);
-            if (config.evalCompLM) state.updateExpScore(bestCompMove.score, R_COMP_OPP);
+            if (config.evalCompLM) expected = getCompetitiveCollMoveScore(metaState, num, collected, bestSoloMove, expected);
+            metaState.updateExpScore(expected, !first ? R_LUCK : R_NONE);
+            if (config.evalCompLM) metaState.updateExpScore(bestCompMove.score, R_COMP_OPP);
         }
 
         first = false;
@@ -1715,8 +1729,8 @@ void simColl(std::vector<State>& states, int num, int collected, Config& config)
             if (config.evalLM)
             {
                 double expected = state.score + collected * (num + 1) + getScore(state.free, state.goods);
-                if (config.evalCompLM) expected = getCompetitiveCollMoveScore(state, num, left, move, expected);
-                state.updateExpScore(expected, R_MISTAKE, bestMove.toString());
+                if (config.evalCompLM) expected = getCompetitiveCollMoveScore(metaState, num, left, move, expected);
+                metaState.updateExpScore(expected, R_MISTAKE, bestMove.toString());
             }
 
             break;
@@ -1729,8 +1743,8 @@ void simColl(std::vector<State>& states, int num, int collected, Config& config)
                 if (config.evalLM)
                 {
                     double expected = state.score + collected * (num + 1) + getCollContScore(state.free, state.goods, num, left);
-                    if (config.evalCompLM) expected = getCompetitiveCollMoveScore(state, num, left, move, expected);
-                    state.updateExpScore(expected, R_MISTAKE, bestMove.toString());
+                    if (config.evalCompLM) expected = getCompetitiveCollMoveScore(metaState, num, left, move, expected);
+                    metaState.updateExpScore(expected, R_MISTAKE, bestMove.toString());
                 }
 
                 cont = true;
@@ -1774,9 +1788,9 @@ void simColl(std::vector<State>& states, int num, int collected, Config& config)
     }
 }
 
-void simMove(std::vector<State>& states, int code, int extraDice, int points, Config& config)
+void simMove(MetaState& metaState, int code, int extraDice, int points, Config& config)
 {
-    State& state = states[config.player];
+    State& state = metaState.state;
 
     bool instaDone = isDone(code);
     int rolls;
@@ -1810,8 +1824,8 @@ void simMove(std::vector<State>& states, int code, int extraDice, int points, Co
     if (config.evalLM)
     {
         double expected = state.score + getScore(state.free, state.goods);
-        if (config.evalCompLM) expected = getCompetitiveScore(state, expected);
-        if (!config.evalCompLM || !instaDone) state.updateExpScore(expected, !instaDone ? R_LUCK : R_NONE);
+        if (config.evalCompLM) expected = getCompetitiveScore(metaState, expected);
+        if (!config.evalCompLM || !instaDone) metaState.updateExpScore(expected, !instaDone ? R_LUCK : R_NONE);
     }
 
     if (won && config.verbose)
@@ -1820,9 +1834,11 @@ void simMove(std::vector<State>& states, int code, int extraDice, int points, Co
     }
 }
 
-void simTurn(std::vector<State>& states, Config& config)
+void simTurn(std::vector<MetaState>& metaStates, Config& config)
 {
-    State& state = states[config.player];
+    MetaState& metaState = metaStates[config.player];
+    State& state = metaState.state;
+
     int diceOrdCode;
 
     if (config.verbose)
@@ -1833,19 +1849,19 @@ void simTurn(std::vector<State>& states, Config& config)
         std::cout << "Current score: " << state.score << std::endl;
     }
 
-    if ((!config.manualMoves && config.competitive) || config.evalCompLM) findOthersCumDistr(states, config);
+    if ((!config.manualMoves && config.competitive) || config.evalCompLM) findOthersCumDistr(metaStates, config);
 
     if (config.evalLM)
     {
         double expected = state.score + getScore(state.free, state.goods);
-        if (config.evalCompLM) expected = getCompetitiveScore(state, expected);
-        state.updateExpScore(expected, !config.evalCompLM ? R_NONE : R_COMP_OTHERS);
+        if (config.evalCompLM) expected = getCompetitiveScore(metaState, expected);
+        metaState.updateExpScore(expected, !config.evalCompLM ? R_NONE : R_COMP_OTHERS);
 
-        if (!config.evalCompLM) std::cout << "Expected final score: " << state.expScore << std::endl;
+        if (!config.evalCompLM) std::cout << "Expected final score: " << metaState.expScore << std::endl;
         else
         {
             std::cout << "Expected final rank: ";
-            printSigned(state.expScore);
+            printSigned(metaState.expScore);
         }
     }
 
@@ -1853,7 +1869,7 @@ void simTurn(std::vector<State>& states, Config& config)
 
     diceRoll:
 
-    state.descrToExpRank.clear();
+    metaState.descrToExpRank.clear();
 
     if (config.manualRolls || config.logMode == LOG_READ) diceOrdCode = chooseOrdCode(config);
     else diceOrdCode = randOrdCode();
@@ -1862,15 +1878,15 @@ void simTurn(std::vector<State>& states, Config& config)
     if (!config.manualRolls && config.verbose) printOrdCode(diceOrdCode, config, false);
 
     Move bestSoloMove = getMove(state.free, state.goods, diceOrdCode);
-    Move bestCompMove = config.competitive || config.evalCompLM ? getCompetitiveMove(states, diceOrdCode, config) : Move();
+    Move bestCompMove = config.competitive || config.evalCompLM ? getCompetitiveMove(metaState, diceOrdCode) : Move();
     Move bestMove = config.evalCompLM ? bestCompMove : bestSoloMove;
 
     if (config.evalLM)
     {
         double expected = state.score + bestSoloMove.score;
-        if (config.evalCompLM) expected = getCompetitiveMoveScore(state, diceOrdCode, bestSoloMove, expected);
-        state.updateExpScore(expected, R_LUCK);
-        if (config.evalCompLM) state.updateExpScore(bestCompMove.score, R_COMP_OPP);
+        if (config.evalCompLM) expected = getCompetitiveMoveScore(metaState, diceOrdCode, bestSoloMove, expected);
+        metaState.updateExpScore(expected, R_LUCK);
+        if (config.evalCompLM) metaState.updateExpScore(bestCompMove.score, R_COMP_OPP);
     }
 
     if (config.verbose)
@@ -1914,8 +1930,8 @@ void simTurn(std::vector<State>& states, Config& config)
             if (config.evalLM)
             {
                 double expected = state.score + getContScore(state.free, state.goods);
-                if (config.evalCompLM) expected = getCompetitiveMoveScore(state, diceOrdCode, move, expected);
-                state.updateExpScore(expected, R_MISTAKE, bestMove.toString());
+                if (config.evalCompLM) expected = getCompetitiveMoveScore(metaState, diceOrdCode, move, expected);
+                metaState.updateExpScore(expected, R_MISTAKE, bestMove.toString());
             }
             goto diceRoll;
         }
@@ -1935,10 +1951,10 @@ void simTurn(std::vector<State>& states, Config& config)
                 if (config.evalLM)
                 {
                     double expected = state.score + collected * (num + 1) + getCollScore(state.free, state.goods, num, NUM_DICE - collected);
-                    if (config.evalCompLM) expected = getCompetitiveMoveScore(state, diceOrdCode, move, expected);
-                    state.updateExpScore(expected, R_MISTAKE, bestMove.toString());
+                    if (config.evalCompLM) expected = getCompetitiveMoveScore(metaState, diceOrdCode, move, expected);
+                    metaState.updateExpScore(expected, R_MISTAKE, bestMove.toString());
                 }
-                simColl(states, num, collected, config);
+                simColl(metaState, num, collected, config);
             }
             else
             {
@@ -1947,10 +1963,10 @@ void simTurn(std::vector<State>& states, Config& config)
                 if (config.evalLM)
                 {
                     double expected = state.score + getMoveScore(state.free, state.goods, newCode, extraDice, move.target.points);
-                    if (config.evalCompLM) expected = getCompetitiveMoveScore(state, diceOrdCode, move, expected);
-                    state.updateExpScore(expected, R_MISTAKE, bestMove.toString());
+                    if (config.evalCompLM) expected = getCompetitiveMoveScore(metaState, diceOrdCode, move, expected);
+                    metaState.updateExpScore(expected, R_MISTAKE, bestMove.toString());
                 }
-                simMove(states, newCode, extraDice, move.target.points, config);
+                simMove(metaState, newCode, extraDice, move.target.points, config);
             }
         }
         else fail = true;
@@ -1989,11 +2005,11 @@ std::vector<Result> simGame(Config& config)
 
     if (config.verbose) std::cout << std::endl;
 
-    std::vector<State> states;
+    std::vector<MetaState> metaStates;
 
     for (int player = 0; player < config.numPlayers; ++player)
     {
-        states.emplace_back(config.evalCompLM, config.numPlayers);
+        metaStates.emplace_back(config.evalCompLM, config.numPlayers);
     }
 
     for (int turn = 0; turn < NUM_COMBOS; ++turn)
@@ -2001,14 +2017,17 @@ std::vector<Result> simGame(Config& config)
         for (int player = 0; player < config.numPlayers; ++player)
         {
             config.setPlayer(player);
-            simTurn(states, config);
+            simTurn(metaStates, config);
 
             if (turn == NUM_COMBOS - 1)
             {
-                states[player].score += states[player].goods * POINTS_PER_GOOD;
-                states[player].goods = 0;
+                MetaState& metaState = metaStates[player];
+                State& state = metaState.state;
 
-                if (config.evalLM && !config.evalCompLM) states[player].updateExpScore(states[player].score, R_NONE);
+                state.score += state.goods * POINTS_PER_GOOD;
+                state.goods = 0;
+
+                if (config.evalLM && !config.evalCompLM) metaState.updateExpScore(state.score, R_NONE);
             }
         }
     }
@@ -2016,15 +2035,18 @@ std::vector<Result> simGame(Config& config)
     std::vector<Result> results(config.numPlayers);
     for (int player = 0; player < config.numPlayers; ++player)
     {
-        results[player].score = states[player].score;
+        MetaState& metaState = metaStates[player];
+        State& state = metaState.state;
+
+        results[player].score = state.score;
         for (int other = 0; other < config.numPlayers; ++other)
         {
             if (other == player) continue;
-            if (states[other].score < states[player].score) ++results[player].rank;
-            else if (states[other].score > states[player].score) --results[player].rank;
+            if (metaStates[other].state.score < state.score) ++results[player].rank;
+            else if (metaStates[other].state.score > state.score) --results[player].rank;
         }
 
-        if (config.evalCompLM) states[player].updateExpScore(results[player].rank, player < config.numPlayers - 1 ? R_COMP_OTHERS : R_NONE);
+        if (config.evalCompLM) metaState.updateExpScore(results[player].rank, player < config.numPlayers - 1 ? R_COMP_OTHERS : R_NONE);
     }
 
     for (int player = 0; player < config.numPlayers; ++player)
@@ -2038,7 +2060,7 @@ std::vector<Result> simGame(Config& config)
             if (config.numPlayers > 1) std::cout << "Final rank: " << displayRank(results[player].rank, config) << std::endl;
         }
 
-        if (config.evalLM) states[player].printScoreByReason();
+        if (config.evalLM) metaStates[player].printScoreByReason();
     }
 
     return results;
