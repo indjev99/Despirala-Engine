@@ -1671,7 +1671,7 @@ void simColl(std::vector<State>& states, int num, int collected, Config& config)
 
         Move bestSoloMove = getCollMove(state.free, state.goods, num, left);
 
-        state.descrToExpRank.insert({bestSoloMove.getDescr(), state.expScore});
+        if ((config.competitive || config.evalCompLM) && first) state.descrToExpRank.insert({bestSoloMove.getDescr(), state.expScore});
 
         Move bestCompMove = config.competitive || config.evalCompLM ? getCompetitiveCollMove(states, num, collected, config) : Move();
         Move bestMove = config.evalCompLM ? bestCompMove : bestSoloMove;
@@ -1837,9 +1837,12 @@ void simTurn(std::vector<State>& states, Config& config)
         if (config.evalCompLM) expected = getCompetitiveScore(state, expected);
         state.updateExpScore(expected, !config.evalCompLM ? R_NONE : R_COMP_OTHERS);
 
-        if (!config.evalCompLM) std::cout << "Expected final score: ";
-        else std::cout << "Expected final rank: ";
-        std::cout << state.expScore << std::endl;
+        if (!config.evalCompLM) std::cout << "Expected final score: " << state.expScore << std::endl;
+        else
+        {
+            std::cout << "Expected final rank: ";
+            printSigned(state.expScore);
+        }
     }
 
     state.goods += GOODS_PER_TURN;
