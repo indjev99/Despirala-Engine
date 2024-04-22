@@ -18,7 +18,7 @@ DEP = $(OBJ:$(OBJDIR)/%.o=%.d)
 RM = rm
 DELOBJ = $(OBJ)
 # Windows OS variables & settings
-DEL = del
+DEL = rm
 EXE = .exe
 WDELOBJ = $(SRC:$(SRCDIR)/%$(EXT)=$(OBJDIR)\\%.o)
 
